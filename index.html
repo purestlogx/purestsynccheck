@@ -203,7 +203,7 @@ tr:last-child td{border-bottom:none;}
 <body>
 
 <nav>
-  <div class="nav-logo">Purest Nest <span>Sync Check</span> <span style="font-size:10px;opacity:.4;font-weight:400">v3.0</span></div>
+  <div class="nav-logo">Purest Nest <span>Sync Check</span> <span style="font-size:10px;opacity:.4;font-weight:400">v3.1</span></div>
   <div class="nav-tabs">
     <button class="nav-tab active" onclick="showPage('upload',this)">Upload</button>
     <button class="nav-tab" id="tab-dashboard" onclick="showPage('dashboard',this)">Dashboard</button>
@@ -667,7 +667,7 @@ const runPH=()=>runWithProgress('ph',comparePH);
 const runMY=()=>runWithProgress('my',compareMY);
 
 // ══ PH COMPARISON ════════════════════════════════════════════════
-const BUNDLE_PFX=['PN-BUNDLE-','PN-BU-','PN-VB-'];
+const BUNDLE_PFX=['PN-BUNDLE-','PN-BU-','PN-VB-','PN-HB-'];
 function skuToken(sku){for(const p of['PN-SB-','PN-ES-','PN-FB-','PN-ME-'])if(sku.startsWith(p))return sku.slice(p.length).replace(/-/g,'');return null;}
 function decodePfxBundle(sku,tMap){if(PH_RULES.mixedSet.includes(sku))return null;for(const p of BUNDLE_PFX)if(sku.startsWith(p))return sku.slice(p.length).split(/[+\-x]/).map(t=>tMap[t]).filter(Boolean);return null;}
 function decodeMulti(sku){if(PH_RULES.standalone.includes(sku))return null;const cu=PH_RULES.multiUnit.find(r=>r.sku===sku);if(cu)return{mother:cu.mother,n:+cu.mult};const mES=sku.match(/^(PN-ES-\w+)-(\d+)$/);if(mES&&+mES[2]>1)return{mother:mES[1]+'-1',n:+mES[2]};const mSB90=sku.match(/^(PN-SB-\w+)-90$/);if(mSB90)return{mother:mSB90[1]+'-30',n:3};const mSB60=sku.match(/^(PN-SB-\w+)-60$/);if(mSB60)return{mother:mSB60[1]+'-30',n:2};return null;}
