@@ -199,7 +199,7 @@ tr:last-child td{border-bottom:none;}
 <body>
 
 <nav>
-  <div class="nav-logo">Purest Nest <span>Sync Check</span> <span style="font-size:10px;opacity:.4;font-weight:400">v2.3</span></div>
+  <div class="nav-logo">Purest Nest <span>Sync Check</span> <span style="font-size:10px;opacity:.4;font-weight:400">v2.5</span></div>
   <div class="nav-tabs">
     <button class="nav-tab active" onclick="showPage('upload',this)">Upload</button>
     <button class="nav-tab" id="tab-dashboard" onclick="showPage('dashboard',this)">Dashboard</button>
@@ -751,7 +751,17 @@ function compareMY(){
   for(const r of state.my.njvData){
     const sku=String(r['Item']||'').trim().toUpperCase();
     const tok=skuToken(sku);
-    if(tok&&!sku.startsWith('BUNDLE -'))myTokenMap[tok]=sku;
+    if(tok&&!sku.startsWith('BUNDLE -')){
+      myTokenMap[tok]=sku;
+      // Also register alias tokens so bundles using un-aliased codes still decode correctly
+      // e.g. NJV has PN-ES-GKSBH-1 (tok=GKSBH1), but bundle says GKSB1 → also map GKSB1→PN-ES-GKSBH-1
+      for(const {from,to} of MY_RULES.myAliases){
+        const aliasedToken=tok.replace(new RegExp(to,'i'),from);
+        if(aliasedToken!==tok)myTokenMap[aliasedToken]=sku;
+        const reverseToken=tok.replace(new RegExp(from,'i'),to);
+        if(reverseToken!==tok)myTokenMap[reverseToken]=sku;
+      }
+    }
   }
 
   function decodeMYBundle(sku){
@@ -858,11 +868,11 @@ function compareMY(){
   }
 
   const onlyPlatRows=[];
-  for(const n of onlyPlat)for(const[sku,qty]of Object.entries(platMap[n]))onlyPlatRows.push({order:n,sku,qty});
+  for(const n of onlyPlat){const skus=Object.entries(platMap[n]).map(([s,q])=>`${s} (×${q})`).join(', ');onlyPlatRows.push({order:n,skus,totalSkus:Object.keys(platMap[n]).length});}
   const onlyNJVRows=[];
-  for(const n of onlyNJV)for(const[sku,qty]of Object.entries(njvMap[n]))onlyNJVRows.push({order:n,sku,qty});
+  for(const n of onlyNJV){const skus=Object.entries(njvMap[n]).map(([s,q])=>`${s} (×${q})`).join(', ');onlyNJVRows.push({order:n,skus,totalSkus:Object.keys(njvMap[n]).length});}
 
-  return{type:'my',excludedCount:Object.keys(excluded).length,platTotal:platNames.size+Object.keys(excluded).length,platActive:platNames.size,njvTotal:njvNames.size,common:common.length,onlyPlat,onlyNJV,onlyPlatRows,onlyNJVRows,missing,extra,match,mismatch};
+  return{type:'my',excluded,excludedCount:Object.keys(excluded).length,platTotal:platNames.size+Object.keys(excluded).length,platActive:platNames.size,njvTotal:njvNames.size,common:common.length,onlyPlat,onlyNJV,onlyPlatRows,onlyNJVRows,missing,extra,match,mismatch};
 }
 
 // ══ DASHBOARD ═════════════════════════════════════════════════════
@@ -962,7 +972,7 @@ function renderTable(){
     mismatch:{title:'❌ QTY Mismatch',         cols:['Order','Shopify SKU','Inspire SKU','Shopify QTY','Inspire QTY','Diff','Remark'],rows:r.mismatch.map(d=>[d.order,d.shopifySku,d.inspireSku,d.sq,d.iq,d.diff,d.remark])},
     missing: {title:'🔴 Missing from Inspire', cols:['Order','Shopify SKU','Shopify QTY','Issue'],rows:r.missing.map(d=>[d.order,d.shopifySku,d.sq,d.issue])},
     extra:   {title:'🟡 Extra in Inspire',     cols:['Order','Inspire SKU','Inspire QTY','Note'],rows:r.extra.map(d=>[d.order,d.inspireSku,d.iq,d.note])},
-    onlySho: {title:'📋 Only in Shopify',      cols:['Order','SKU','QTY'],rows:r.onlyShoRows.map(d=>[d.order,d.sku,d.qty])},
+    onlySho: {title:'📋 Only in Shopify',      cols:['Order','SKUs','# SKUs'],rows:r.onlyShoRows.map(d=>[d.order,d.skus,d.totalSkus])},
     onlyIns: {title:'📋 Only in Inspire',      cols:['Order','Note'],rows:r.onlyIns.map(n=>[n,'No matching platform order'])},
     refunded:{title:'🚫 Refunded (Excluded)',  cols:['Order','Note'],rows:r.refunded.map(n=>[n,'Excluded — refunded'])},
   }:{
@@ -970,9 +980,9 @@ function renderTable(){
     mismatch:{title:'❌ QTY Mismatch',       cols:['Order','SKU','Platform QTY','NJV QTY','Diff','Remark'],rows:r.mismatch.map(d=>[d.order,d.platformSku,d.platformQty,d.njvQty,d.diff,d.remark])},
     missing: {title:'🔴 Missing from NJV',  cols:['Order','Platform SKU','Platform QTY','Issue'],rows:r.missing.map(d=>[d.order,d.platformSku,d.platformQty,d.issue])},
     extra:   {title:'🟡 Extra in NJV',      cols:['Order','NJV SKU','NJV QTY','Note'],rows:r.extra.map(d=>[d.order,d.njvSku,d.njvQty,d.note])},
-    onlyPlat:{title:'📋 Only in Platforms', cols:['Order','SKU','QTY'],rows:r.onlyPlatRows.map(d=>[d.order,d.sku,d.qty])},
-    onlyNJV: {title:'📋 Only in NJV',       cols:['Order','SKU','NJV QTY'],rows:r.onlyNJVRows.map(d=>[d.order,d.sku,d.qty])},
-    excl:    {title:'🚫 Cancelled (Excluded)',cols:['Order','Note'],rows:[]},
+    onlyPlat:{title:'📋 Only in Platforms', cols:['Order','SKUs','# SKUs'],rows:r.onlyPlatRows.map(d=>[d.order,d.skus,d.totalSkus])},
+    onlyNJV: {title:'📋 Only in NJV',       cols:['Order','SKUs','# SKUs'],rows:r.onlyNJVRows.map(d=>[d.order,d.skus,d.totalSkus])},
+    excl:    {title:'🚫 Cancelled (Excluded)',cols:['Order','Note'],rows:Object.keys(r.excluded||{}).sort().map(n=>[n,'Cancelled — excluded from audit'])},
   };
   const v=V[curView];if(!v){document.getElementById('detail-label').textContent='—';document.getElementById('detail-table').innerHTML=`<div class="empty-state">No data</div>`;return;}
   document.getElementById('detail-label').textContent=v.title;
@@ -1015,7 +1025,7 @@ function exportView(){
     mismatch:{n:'QTY_Mismatch',c:['Order','Shopify SKU','Inspire SKU','Shopify QTY','Inspire QTY','Diff','Remark'],d:r.mismatch.map(d=>[d.order,d.shopifySku,d.inspireSku,d.sq,d.iq,d.diff,d.remark])},
     missing: {n:'Missing',     c:['Order','Shopify SKU','Shopify QTY','Issue'],d:r.missing.map(d=>[d.order,d.shopifySku,d.sq,d.issue])},
     extra:   {n:'Extra',       c:['Order','Inspire SKU','Inspire QTY','Note'],d:r.extra.map(d=>[d.order,d.inspireSku,d.iq,d.note])},
-    onlySho: {n:'Only_Shopify',c:['Order','SKU','QTY'],d:r.onlyShoRows.map(d=>[d.order,d.sku,d.qty])},
+    onlySho: {n:'Only_Shopify',c:['Order','SKUs','# SKUs'],d:r.onlyShoRows.map(d=>[d.order,d.skus,d.totalSkus])},
     onlyIns: {n:'Only_Inspire',c:['Order','Note'],d:r.onlyIns.map(n=>[n,'No matching order'])},
     refunded:{n:'Refunded',    c:['Order','Note'],d:r.refunded.map(n=>[n,'Excluded'])},
   }:{
@@ -1023,8 +1033,8 @@ function exportView(){
     mismatch:{n:'QTY_Mismatch', c:['Order','SKU','Platform QTY','NJV QTY','Diff','Remark'],d:r.mismatch.map(d=>[d.order,d.platformSku,d.platformQty,d.njvQty,d.diff,d.remark])},
     missing: {n:'Missing',      c:['Order','Platform SKU','Platform QTY','Issue'],d:r.missing.map(d=>[d.order,d.platformSku,d.platformQty,d.issue])},
     extra:   {n:'Extra_NJV',    c:['Order','NJV SKU','NJV QTY','Note'],d:r.extra.map(d=>[d.order,d.njvSku,d.njvQty,d.note])},
-    onlyPlat:{n:'Only_Platforms',c:['Order','SKU','QTY'],d:r.onlyPlatRows.map(d=>[d.order,d.sku,d.qty])},
-    onlyNJV: {n:'Only_NJV',     c:['Order','SKU','NJV QTY'],d:r.onlyNJVRows.map(d=>[d.order,d.sku,d.qty])},
+    onlyPlat:{n:'Only_Platforms',c:['Order','SKUs','# SKUs'],d:r.onlyPlatRows.map(d=>[d.order,d.skus,d.totalSkus])},
+    onlyNJV: {n:'Only_NJV',     c:['Order','SKUs','# SKUs'],d:r.onlyNJVRows.map(d=>[d.order,d.skus,d.totalSkus])},
     excl:    {n:'Excluded',     c:['Note'],d:[['Cancelled orders excluded from audit']]},
   };
   const v=V[curView];if(!v)return;
