@@ -199,7 +199,7 @@ tr:last-child td{border-bottom:none;}
 <body>
 
 <nav>
-  <div class="nav-logo">Purest Nest <span>Sync Check</span> <span style="font-size:10px;opacity:.4;font-weight:400">v2.2</span></div>
+  <div class="nav-logo">Purest Nest <span>Sync Check</span> <span style="font-size:10px;opacity:.4;font-weight:400">v2.3</span></div>
   <div class="nav-tabs">
     <button class="nav-tab active" onclick="showPage('upload',this)">Upload</button>
     <button class="nav-tab" id="tab-dashboard" onclick="showPage('dashboard',this)">Dashboard</button>
@@ -755,12 +755,12 @@ function compareMY(){
   }
 
   function decodeMYBundle(sku){
-    if(MY_RULES.myMixedSet.includes(sku))return null;
-    // Standard bundle prefix — strip prefix and decode tokens
-    for(const p of BUNDLE_PFX)if(sku.startsWith(p))return sku.slice(p.length).split(/[+\-x]/i).map(t=>myTokenMap[t]).filter(Boolean);
-    // Custom bundle SKU — use the explicitly defined component list
+    if(MY_RULES.myMixedSet.some(s=>s.toUpperCase()===sku.toUpperCase()))return null;
+    // Custom bundle MUST be checked first — takes priority over prefix decoder
     const cb=MY_RULES.myCustomBundles.find(b=>b.sku.toUpperCase()===sku.toUpperCase());
     if(cb)return cb.components.length?cb.components:null;
+    // Standard bundle prefix — strip prefix and decode tokens
+    for(const p of BUNDLE_PFX)if(sku.toUpperCase().startsWith(p))return sku.slice(p.length).split(/[+\-x]/i).map(t=>myTokenMap[t]).filter(Boolean);
     return null;
   }
   function decodeMYMulti(sku){
