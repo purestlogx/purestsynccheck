@@ -68,7 +68,7 @@ nav{background:var(--white);border-bottom:1px solid var(--border);padding:0 32px
 .upload-grid{display:grid;gap:12px;margin-bottom:16px;}
 .upload-grid.cols-2{grid-template-columns:1fr 1fr;}
 .upload-grid.cols-4{grid-template-columns:repeat(4,1fr);}
-.drop-zone{background:var(--white);border:1.5px dashed var(--border);border-radius:var(--radius);padding:24px 16px;text-align:center;cursor:pointer;transition:all .2s;}
+.drop-zone{background:var(--white);border:1.5px dashed var(--border);border-radius:var(--radius);padding:24px 16px;text-align:center;cursor:pointer;transition:all .2s;min-height:130px;height:130px;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;}
 .drop-zone:hover{border-color:var(--accent);background:var(--accent-lt);}
 .drop-zone.ready{border-color:var(--green);border-style:solid;background:var(--green-lt);}
 .drop-zone input{display:none;}
@@ -76,6 +76,10 @@ nav{background:var(--white);border-bottom:1px solid var(--border);padding:0 32px
 .drop-label{font-size:13px;font-weight:600;margin-bottom:3px;}
 .drop-sub{font-size:11px;color:var(--muted);}
 .drop-filename{font-size:11px;font-weight:500;color:var(--green);margin-top:6px;}
+.drop-zone{position:relative;}
+.drop-remove{display:none;position:absolute;top:8px;right:10px;background:var(--red-lt);border:1px solid var(--red-bd);color:var(--red);border-radius:4px;font-size:11px;font-weight:600;padding:2px 7px;cursor:pointer;line-height:1.4;transition:all .15s;z-index:1;}
+.drop-remove:hover{background:var(--red);color:#fff;}
+.drop-zone.ready .drop-remove{display:block;}
 .section-divider{font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.8px;text-transform:uppercase;margin:16px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--border);}
 .run-btn{width:100%;padding:12px;background:var(--accent);color:#fff;border:none;border-radius:var(--radius);font-family:'Inter',sans-serif;font-size:14px;font-weight:600;cursor:pointer;transition:background .15s;}
 .run-btn:hover:not(:disabled){background:#1d4ed8;}
@@ -199,7 +203,7 @@ tr:last-child td{border-bottom:none;}
 <body>
 
 <nav>
-  <div class="nav-logo">Purest Nest <span>Sync Check</span> <span style="font-size:10px;opacity:.4;font-weight:400">v2.5</span></div>
+  <div class="nav-logo">Purest Nest <span>Sync Check</span> <span style="font-size:10px;opacity:.4;font-weight:400">v2.9</span></div>
   <div class="nav-tabs">
     <button class="nav-tab active" onclick="showPage('upload',this)">Upload</button>
     <button class="nav-tab" id="tab-dashboard" onclick="showPage('dashboard',this)">Dashboard</button>
@@ -228,12 +232,14 @@ tr:last-child td{border-bottom:none;}
         <div class="drop-label">Shopify Export</div>
         <div class="drop-sub">CSV · Name, Financial Status, Lineitem qty, Lineitem sku</div>
         <div class="drop-filename" id="ph-name-shopify">Click to select file</div>
+        <span class="drop-remove" onclick="removeFile('ph-zone-shopify','ph-file-shopify','ph')">✕ Remove</span>
       </label>
       <label class="drop-zone" id="ph-zone-inspire" for="ph-file-inspire">
         <div class="drop-icon">📦</div>
         <div class="drop-label">Inspire Invoice</div>
         <div class="drop-sub">XLSX · Invoice, SKU, Quantity, Marketplace Order Number</div>
         <div class="drop-filename" id="ph-name-inspire">Click to select file</div>
+        <span class="drop-remove" onclick="removeFile('ph-zone-inspire','ph-file-inspire','ph')">✕ Remove</span>
       </label>
     </div>
     <div class="progress-bar" id="ph-progress-bar"><div class="progress-fill" id="ph-progress-fill"></div></div>
@@ -253,38 +259,51 @@ tr:last-child td{border-bottom:none;}
         <div class="drop-label">NJV Outbound Order Inquiry</div>
         <div class="drop-sub">XLSX · External Order #1, Item, Shipped Qty</div>
         <div class="drop-filename" id="my-name-njv">Click to select file</div>
+        <span class="drop-remove" onclick="removeFile('my-zone-njv','my-file-njv','my')">✕ Remove</span>
       </label>
     </div>
 
     <div class="section-divider">Platform Orders</div>
-    <input type="file" id="my-file-shopify" accept=".csv" style="display:none" onchange="handleFileMY('shopify',this)"/>
+    <input type="file" id="my-file-shopify1" accept=".csv" style="display:none" onchange="handleFileMY('shopify1',this)"/>
+    <input type="file" id="my-file-shopify2" accept=".csv" style="display:none" onchange="handleFileMY('shopify2',this)"/>
     <input type="file" id="my-file-shopee"  accept=".xlsx,.xls,.csv" style="display:none" onchange="handleFileMY('shopee',this)"/>
     <input type="file" id="my-file-lazada"  accept=".xlsx,.xls,.csv" style="display:none" onchange="handleFileMY('lazada',this)"/>
     <input type="file" id="my-file-tiktok"  accept=".csv,.xlsx" style="display:none" onchange="handleFileMY('tiktok',this)"/>
-    <div class="upload-grid cols-4">
-      <label class="drop-zone" id="my-zone-shopify" for="my-file-shopify">
+    <div class="upload-grid cols-4" style="grid-template-columns:1fr 1fr 1fr 1fr 1fr 1fr;">
+      <label class="drop-zone" id="my-zone-shopify1" for="my-file-shopify1">
         <div class="drop-icon">🛍</div>
-        <div class="drop-label">Shopify</div>
-        <div class="drop-sub">CSV · Name, Lineitem sku, qty</div>
-        <div class="drop-filename" id="my-name-shopify">Optional</div>
+        <div class="drop-label">Shopify (Store 1)</div>
+        <div class="drop-sub">CSV</div>
+        <div class="drop-filename" id="my-name-shopify1">Optional</div>
+        <span class="drop-remove" onclick="removeFile('my-zone-shopify1','my-file-shopify1','my')">✕ Remove</span>
+      </label>
+      <label class="drop-zone" id="my-zone-shopify2" for="my-file-shopify2">
+        <div class="drop-icon">🛍</div>
+        <div class="drop-label">Shopify (Store 2)</div>
+        <div class="drop-sub">CSV</div>
+        <div class="drop-filename" id="my-name-shopify2">Optional</div>
+        <span class="drop-remove" onclick="removeFile('my-zone-shopify2','my-file-shopify2','my')">✕ Remove</span>
       </label>
       <label class="drop-zone" id="my-zone-shopee" for="my-file-shopee">
         <div class="drop-icon">🟠</div>
         <div class="drop-label">Shopee</div>
         <div class="drop-sub">XLSX · Order ID, SKU Reference No., Quantity</div>
         <div class="drop-filename" id="my-name-shopee">Optional</div>
+        <span class="drop-remove" onclick="removeFile('my-zone-shopee','my-file-shopee','my')">✕ Remove</span>
       </label>
       <label class="drop-zone" id="my-zone-lazada" for="my-file-lazada">
         <div class="drop-icon">🔵</div>
         <div class="drop-label">Lazada</div>
         <div class="drop-sub">XLSX · orderNumber, sellerSku</div>
         <div class="drop-filename" id="my-name-lazada">Optional</div>
+        <span class="drop-remove" onclick="removeFile('my-zone-lazada','my-file-lazada','my')">✕ Remove</span>
       </label>
       <label class="drop-zone" id="my-zone-tiktok" for="my-file-tiktok">
         <div class="drop-icon">🎵</div>
         <div class="drop-label">TikTok</div>
         <div class="drop-sub">CSV · Order ID, Seller SKU, Quantity</div>
         <div class="drop-filename" id="my-name-tiktok">Optional</div>
+        <span class="drop-remove" onclick="removeFile('my-zone-tiktok','my-file-tiktok','my')">✕ Remove</span>
       </label>
     </div>
     <div class="progress-bar" id="my-progress-bar"><div class="progress-fill" id="my-progress-fill"></div></div>
@@ -462,7 +481,7 @@ tr:last-child td{border-bottom:none;}
 const state={
   market:'ph',
   ph:{shopifyData:null,inspireData:null,results:null},
-  my:{njvData:null,shopifyData:null,shopeeData:null,lazadaData:null,tiktokData:null,results:null},
+  my:{njvData:null,shopify1Data:null,shopify2Data:null,shopeeData:null,lazadaData:null,tiktokData:null,results:null},
 };
 let prevCounts={ph:null,my:null};
 try{const p=JSON.parse(localStorage.getItem('icPrevCounts2'));if(p)prevCounts=p;}catch{}
@@ -582,9 +601,38 @@ function handleFilePH(type,input){
 }
 function checkReadyPH(){document.getElementById('ph-run-btn').disabled=!(state.ph.shopifyData&&state.ph.inspireData);}
 
+function removeFile(zoneId, fileId, market){
+  event.preventDefault();
+  event.stopPropagation();
+  // Clear the file input
+  const input=document.getElementById(fileId);
+  if(input)input.value='';
+  // Reset zone styling
+  const zone=document.getElementById(zoneId);
+  zone.classList.remove('ready');
+  // Reset filename label
+  const type=zoneId.replace(market+'-zone-','');
+  const nameEl=document.getElementById(zoneId.replace('zone','name'));
+  if(nameEl)nameEl.textContent=(['shopify','inspire','njv'].includes(type)?'Click to select file':'Optional');
+  // Clear state data
+  if(market==='ph'){
+    if(type==='shopify')state.ph.shopifyData=null;
+    if(type==='inspire')state.ph.inspireData=null;
+    document.getElementById('ph-run-btn').disabled=!(state.ph.shopifyData&&state.ph.inspireData);
+  } else {
+    if(type==='shopify1')state.my.shopify1Data=null;
+    if(type==='shopify2')state.my.shopify2Data=null;
+    if(type==='njv')state.my.njvData=null;
+    if(type==='shopee')state.my.shopeeData=null;
+    if(type==='lazada')state.my.lazadaData=null;
+    if(type==='tiktok')state.my.tiktokData=null;
+    checkReadyMY();
+  }
+}
 function handleFileMY(type,input){
-  const file=input.files[0];if(!file)return;
+  const files=Array.from(input.files);if(!files.length)return;
   document.getElementById('my-zone-'+type).classList.add('ready');
+  const file=files[0];
   document.getElementById('my-name-'+type).textContent=file.name;
   const done=data=>{state.my[type+'Data']=data;checkReadyMY();};
   const ext=file.name.split('.').pop().toLowerCase();
@@ -678,26 +726,29 @@ function compareMY(){
 
   // Build platform map: order → { SKU → qty }
   const platMap={};
+  const platSource={};
   const excluded={};
 
   // Helper to add to platMap
-  function addOrder(orderId,sku,qty){
+  function addOrder(orderId,sku,qty,platform){
     if(!orderId||!sku)return;
     const normSku=sku.toUpperCase();
     if(!platMap[orderId])platMap[orderId]={};
     platMap[orderId][normSku]=(platMap[orderId][normSku]||0)+(+qty||0);
+    if(platform&&!platSource[orderId])platSource[orderId]=platform;
   }
 
-  // Shopify MY
-  if(state.my.shopifyData){
+  // Shopify MY — merge store 1 and store 2
+  const shopifyMYData=[...(state.my.shopify1Data||[]),...(state.my.shopify2Data||[])];
+  if(shopifyMYData.length){
     const excl=new Set(MY_RULES.myShopifyExcl.map(s=>s.toLowerCase()));
     let lastStatus='';
-    state.my.shopifyData.forEach(r=>{
+    shopifyMYData.forEach(r=>{
       const fs=(r['Financial Status']||'').toLowerCase();if(fs)lastStatus=fs;
       const name=String(r['Name']||'').trim();
       if(excl.has(lastStatus)){excluded[name]=true;return;}
       if(excluded[name])return;
-      addOrder(name,String(r['Lineitem sku']||'').trim(),+r['Lineitem quantity']||0);
+      addOrder(name,String(r['Lineitem sku']||'').trim(),+r['Lineitem quantity']||0,'Shopify');
     });
   }
 
@@ -708,8 +759,10 @@ function compareMY(){
       const status=String(r['Order Status']||'').trim();
       const orderId=String(r['Order ID']||'').trim();
       if(excl.has(status.toLowerCase())){excluded[orderId]=true;return;}
+      // Exclude FBS (Fulfilled By Shopee) orders
+      if(String(r['FBS Order']||'').trim().toLowerCase()==='yes'){excluded[orderId]=true;return;}
       if(excluded[orderId])return;
-      addOrder(orderId,String(r['SKU Reference No.']||'').trim(),+r['Quantity']||1);
+      addOrder(orderId,String(r['SKU Reference No.']||'').trim(),+r['Quantity']||1,'Shopee');
     });
   }
 
@@ -721,7 +774,7 @@ function compareMY(){
       const orderId=String(r['orderNumber']||'').trim();
       if(excl.has(status.toLowerCase())){excluded[orderId]=true;return;}
       if(excluded[orderId])return;
-      addOrder(orderId,String(r['sellerSku']||'').trim(),1);
+      addOrder(orderId,String(r['sellerSku']||'').trim(),1,'Lazada');
     });
   }
 
@@ -733,7 +786,7 @@ function compareMY(){
       const orderId=String(r['Order ID']||'').trim();
       if(excl.has(status.toLowerCase())){excluded[orderId]=true;return;}
       if(excluded[orderId])return;
-      addOrder(orderId,String(r['Seller SKU']||'').trim(),+r['Quantity']||1);
+      addOrder(orderId,String(r['Seller SKU']||'').trim(),+r['Quantity']||1,'TikTok');
     });
   }
 
@@ -806,7 +859,8 @@ function compareMY(){
   const missing=[],extra=[],match=[],mismatch=[];
 
   function recMY(orderId,platSku,njvSku,pq,nq){
-    const row={order:orderId,platformSku:platSku,njvSku,platformQty:pq,njvQty:nq};
+    const platform=platSource[orderId]||'';
+    const row={order:orderId,platform,platformSku:platSku,njvSku,platformQty:pq,njvQty:nq};
     if(pq===nq)match.push(row);
     else mismatch.push({...row,diff:pq-nq,remark:nq>pq?`NJV has ${nq-pq} more`:`NJV has ${pq-nq} less`});
   }
@@ -825,7 +879,7 @@ function compareMY(){
         const comps=decodeMYBundle(sku)||[];
         if(comps.length===0){
           // Unknown bundle, no components decoded — flag as missing
-          missing.push({order:orderId,platformSku:sku,platformQty:pq,issue:'Bundle SKU could not be decoded — check SKU rules'});
+          missing.push({order:orderId,platform:platSource[orderId]||'',platformSku:sku,platformQty:pq,issue:'Bundle SKU could not be decoded — check SKU rules'});
         } else {
           for(const c of comps){
             const resolvedC=resolveMyAlias(c,njvSkus)||c;
@@ -834,7 +888,7 @@ function compareMY(){
               const label=resolvedC!==c?`${sku} → ${c} (alias → ${resolvedC})`:`${sku} → ${c}`;
               recMY(orderId,label,resolvedC,pq,njvD[resolvedC]);
             } else {
-              missing.push({order:orderId,platformSku:sku,platformQty:pq,issue:`Bundle component ${c} missing from NJV`});
+              missing.push({order:orderId,platform:platSource[orderId]||'',platformSku:sku,platformQty:pq,issue:`Bundle component ${c} missing from NJV`});
             }
           }
         }
@@ -848,7 +902,7 @@ function compareMY(){
           const label=resolvedMother!==mother?`${sku} → ${mother} (alias → ${resolvedMother}, ×${n})`:`${sku} → ${mother} (×${n})`;
           recMY(orderId,label,resolvedMother,expQ,njvD[resolvedMother]);
         } else {
-          missing.push({order:orderId,platformSku:sku,platformQty:pq,issue:`Mother SKU ${mother} (qty ${expQ}) missing from NJV`});
+          missing.push({order:orderId,platform:platSource[orderId]||'',platformSku:sku,platformQty:pq,issue:`Mother SKU ${mother} (qty ${expQ}) missing from NJV`});
         }
       } else {
         const resolved=resolveMyAlias(sku,njvSkus);
@@ -857,13 +911,13 @@ function compareMY(){
           const label=resolved!==sku?`${sku} (alias → ${resolved})`:sku;
           recMY(orderId,label,resolved,pq,njvD[resolved]);
         } else {
-          missing.push({order:orderId,platformSku:sku,platformQty:pq,issue:'SKU in platform orders but missing from NJV'});
+          missing.push({order:orderId,platform:platSource[orderId]||'',platformSku:sku,platformQty:pq,issue:'SKU in platform orders but missing from NJV'});
         }
       }
     }
 
     for(const sku of[...njvSkus].filter(s=>!explained.has(s)&&!s.startsWith('BUNDLE -'))){
-      extra.push({order:orderId,njvSku:sku,njvQty:njvD[sku],note:'SKU in NJV but not in platform orders'});
+      extra.push({order:orderId,platform:platSource[orderId]||'',njvSku:sku,njvQty:njvD[sku],note:'SKU in NJV but not in platform orders'});
     }
   }
 
@@ -872,7 +926,7 @@ function compareMY(){
   const onlyNJVRows=[];
   for(const n of onlyNJV){const skus=Object.entries(njvMap[n]).map(([s,q])=>`${s} (×${q})`).join(', ');onlyNJVRows.push({order:n,skus,totalSkus:Object.keys(njvMap[n]).length});}
 
-  return{type:'my',excluded,excludedCount:Object.keys(excluded).length,platTotal:platNames.size+Object.keys(excluded).length,platActive:platNames.size,njvTotal:njvNames.size,common:common.length,onlyPlat,onlyNJV,onlyPlatRows,onlyNJVRows,missing,extra,match,mismatch};
+  return{type:'my',excluded,platSource,excludedCount:Object.keys(excluded).length,platTotal:platNames.size+Object.keys(excluded).length,platActive:platNames.size,njvTotal:njvNames.size,common:common.length,onlyPlat,onlyNJV,onlyPlatRows,onlyNJVRows,missing,extra,match,mismatch};
 }
 
 // ══ DASHBOARD ═════════════════════════════════════════════════════
@@ -976,11 +1030,11 @@ function renderTable(){
     onlyIns: {title:'📋 Only in Inspire',      cols:['Order','Note'],rows:r.onlyIns.map(n=>[n,'No matching platform order'])},
     refunded:{title:'🚫 Refunded (Excluded)',  cols:['Order','Note'],rows:r.refunded.map(n=>[n,'Excluded — refunded'])},
   }:{
-    match:   {title:'✅ QTY Match',         cols:['Order','SKU','QTY'],rows:r.match.map(d=>[d.order,d.platformSku,d.platformQty])},
-    mismatch:{title:'❌ QTY Mismatch',       cols:['Order','SKU','Platform QTY','NJV QTY','Diff','Remark'],rows:r.mismatch.map(d=>[d.order,d.platformSku,d.platformQty,d.njvQty,d.diff,d.remark])},
-    missing: {title:'🔴 Missing from NJV',  cols:['Order','Platform SKU','Platform QTY','Issue'],rows:r.missing.map(d=>[d.order,d.platformSku,d.platformQty,d.issue])},
-    extra:   {title:'🟡 Extra in NJV',      cols:['Order','NJV SKU','NJV QTY','Note'],rows:r.extra.map(d=>[d.order,d.njvSku,d.njvQty,d.note])},
-    onlyPlat:{title:'📋 Only in Platforms', cols:['Order','SKUs','# SKUs'],rows:r.onlyPlatRows.map(d=>[d.order,d.skus,d.totalSkus])},
+    match:   {title:'✅ QTY Match',         cols:['Platform','Order','SKU','QTY'],rows:r.match.map(d=>[d.platform,d.order,d.platformSku,d.platformQty])},
+    mismatch:{title:'❌ QTY Mismatch',       cols:['Platform','Order','SKU','Platform QTY','NJV QTY','Diff','Remark'],rows:r.mismatch.map(d=>[d.platform,d.order,d.platformSku,d.platformQty,d.njvQty,d.diff,d.remark])},
+    missing: {title:'🔴 Missing from NJV',  cols:['Platform','Order','Platform SKU','Platform QTY','Issue'],rows:r.missing.map(d=>[d.platform,d.order,d.platformSku,d.platformQty,d.issue])},
+    extra:   {title:'🟡 Extra in NJV',      cols:['Platform','Order','NJV SKU','NJV QTY','Note'],rows:r.extra.map(d=>[d.platform,d.order,d.njvSku,d.njvQty,d.note])},
+    onlyPlat:{title:'📋 Only in Platforms', cols:['Platform','Order','SKUs','# SKUs'],rows:r.onlyPlatRows.map(d=>[(r.platSource&&r.platSource[d.order])||'',d.order,d.skus,d.totalSkus])},
     onlyNJV: {title:'📋 Only in NJV',       cols:['Order','SKUs','# SKUs'],rows:r.onlyNJVRows.map(d=>[d.order,d.skus,d.totalSkus])},
     excl:    {title:'🚫 Cancelled (Excluded)',cols:['Order','Note'],rows:Object.keys(r.excluded||{}).sort().map(n=>[n,'Cancelled — excluded from audit'])},
   };
@@ -1029,10 +1083,10 @@ function exportView(){
     onlyIns: {n:'Only_Inspire',c:['Order','Note'],d:r.onlyIns.map(n=>[n,'No matching order'])},
     refunded:{n:'Refunded',    c:['Order','Note'],d:r.refunded.map(n=>[n,'Excluded'])},
   }:{
-    match:   {n:'QTY_Match',    c:['Order','SKU','QTY'],d:r.match.map(d=>[d.order,d.platformSku,d.platformQty])},
-    mismatch:{n:'QTY_Mismatch', c:['Order','SKU','Platform QTY','NJV QTY','Diff','Remark'],d:r.mismatch.map(d=>[d.order,d.platformSku,d.platformQty,d.njvQty,d.diff,d.remark])},
-    missing: {n:'Missing',      c:['Order','Platform SKU','Platform QTY','Issue'],d:r.missing.map(d=>[d.order,d.platformSku,d.platformQty,d.issue])},
-    extra:   {n:'Extra_NJV',    c:['Order','NJV SKU','NJV QTY','Note'],d:r.extra.map(d=>[d.order,d.njvSku,d.njvQty,d.note])},
+    match:   {n:'QTY_Match',    c:['Platform','Order','SKU','QTY'],d:r.match.map(d=>[d.platform,d.order,d.platformSku,d.platformQty])},
+    mismatch:{n:'QTY_Mismatch', c:['Platform','Order','SKU','Platform QTY','NJV QTY','Diff','Remark'],d:r.mismatch.map(d=>[d.platform,d.order,d.platformSku,d.platformQty,d.njvQty,d.diff,d.remark])},
+    missing: {n:'Missing',      c:['Platform','Order','Platform SKU','Platform QTY','Issue'],d:r.missing.map(d=>[d.platform,d.order,d.platformSku,d.platformQty,d.issue])},
+    extra:   {n:'Extra_NJV',    c:['Platform','Order','NJV SKU','NJV QTY','Note'],d:r.extra.map(d=>[d.platform,d.order,d.njvSku,d.njvQty,d.note])},
     onlyPlat:{n:'Only_Platforms',c:['Order','SKUs','# SKUs'],d:r.onlyPlatRows.map(d=>[d.order,d.skus,d.totalSkus])},
     onlyNJV: {n:'Only_NJV',     c:['Order','SKUs','# SKUs'],d:r.onlyNJVRows.map(d=>[d.order,d.skus,d.totalSkus])},
     excl:    {n:'Excluded',     c:['Note'],d:[['Cancelled orders excluded from audit']]},
