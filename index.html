@@ -203,7 +203,7 @@ tr:last-child td{border-bottom:none;}
 <body>
 
 <nav>
-  <div class="nav-logo">Purest Nest <span>Sync Check</span> <span style="font-size:10px;opacity:.4;font-weight:400">v2.9</span></div>
+  <div class="nav-logo">Purest Nest <span>Sync Check</span> <span style="font-size:10px;opacity:.4;font-weight:400">v3.0</span></div>
   <div class="nav-tabs">
     <button class="nav-tab active" onclick="showPage('upload',this)">Upload</button>
     <button class="nav-tab" id="tab-dashboard" onclick="showPage('dashboard',this)">Dashboard</button>
@@ -821,9 +821,37 @@ function compareMY(){
     if(MY_RULES.myMixedSet.some(s=>s.toUpperCase()===sku.toUpperCase()))return null;
     // Custom bundle MUST be checked first — takes priority over prefix decoder
     const cb=MY_RULES.myCustomBundles.find(b=>b.sku.toUpperCase()===sku.toUpperCase());
-    if(cb)return cb.components.length?cb.components:null;
-    // Standard bundle prefix — strip prefix and decode tokens
-    for(const p of BUNDLE_PFX)if(sku.toUpperCase().startsWith(p))return sku.slice(p.length).split(/[+\-x]/i).map(t=>myTokenMap[t]).filter(Boolean);
+    if(cb)return cb.components.length?cb.components.map(s=>({sku:s,qty:1})):null;
+    // Standard bundle prefix — strip prefix and decode tokens with multi-unit support
+    for(const p of BUNDLE_PFX){
+      if(sku.toUpperCase().startsWith(p)){
+        const tokens=sku.slice(p.length).split(/[+\-x]/i);
+        const comps=[];
+        for(const t of tokens){
+          const tUP=t.toUpperCase();
+          if(myTokenMap[tUP]){
+            // Direct match
+            comps.push({sku:myTokenMap[tUP],qty:1});
+          } else {
+            // Try multi-unit: token ends in a number that's a multiple of 30 or maps to PN-ES-***-N
+            // e.g. SOSE60 → SOSE30 × 2,  SOSE90 → SOSE30 × 3
+            // e.g. LBPM3 → LBPM1 × 3
+            const mSB90=tUP.match(/^([A-Z0-9]+)90$/);
+            const mSB60=tUP.match(/^([A-Z0-9]+)60$/);
+            const mES=tUP.match(/^([A-Z0-9]+)([2-9]|[1-9]\d)$/);
+            if(mSB90&&myTokenMap[mSB90[1]+'30']){
+              comps.push({sku:myTokenMap[mSB90[1]+'30'],qty:3});
+            } else if(mSB60&&myTokenMap[mSB60[1]+'30']){
+              comps.push({sku:myTokenMap[mSB60[1]+'30'],qty:2});
+            } else if(mES&&myTokenMap[mES[1]+'1']){
+              comps.push({sku:myTokenMap[mES[1]+'1'],qty:+mES[2]});
+            }
+            // else token unknown — skip silently
+          }
+        }
+        return comps.length?comps:null;
+      }
+    }
     return null;
   }
   function decodeMYMulti(sku){
@@ -877,18 +905,24 @@ function compareMY(){
       if(kind==='bundle'){
         // NJV has NO bundle header — just expands into component SKUs directly
         const comps=decodeMYBundle(sku)||[];
-        if(comps.length===0){
+        if(!comps||comps.length===0){
           // Unknown bundle, no components decoded — flag as missing
           missing.push({order:orderId,platform:platSource[orderId]||'',platformSku:sku,platformQty:pq,issue:'Bundle SKU could not be decoded — check SKU rules'});
         } else {
-          for(const c of comps){
+          for(const comp of comps){
+            // comp is either {sku, qty} (multi-unit token) or a plain string (direct match)
+            const c    = typeof comp==='object'?comp.sku:comp;
+            const cQty = typeof comp==='object'?comp.qty:1;
+            const expectedQty = pq * cQty;
             const resolvedC=resolveMyAlias(c,njvSkus)||c;
             if(njvSkus.has(resolvedC)){
               explained.add(resolvedC);
-              const label=resolvedC!==c?`${sku} → ${c} (alias → ${resolvedC})`:`${sku} → ${c}`;
-              recMY(orderId,label,resolvedC,pq,njvD[resolvedC]);
+              const label=resolvedC!==c
+                ?`${sku} → ${c}${cQty>1?` (×${cQty})`:''}  (alias → ${resolvedC})`
+                :`${sku} → ${c}${cQty>1?` (×${cQty})`:''}`;
+              recMY(orderId,label,resolvedC,expectedQty,njvD[resolvedC]);
             } else {
-              missing.push({order:orderId,platform:platSource[orderId]||'',platformSku:sku,platformQty:pq,issue:`Bundle component ${c} missing from NJV`});
+              missing.push({order:orderId,platform:platSource[orderId]||'',platformSku:sku,platformQty:pq,issue:`Bundle component ${c}${cQty>1?` (×${cQty})`:''}  missing from NJV`});
             }
           }
         }
