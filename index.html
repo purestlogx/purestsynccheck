@@ -483,16 +483,23 @@ let PH_RULES=(()=>{
 })();
 
 // MY Rules
-const DEFAULT_MY={shopeeExcl:['Cancelled','Unpaid'],lazadaExcl:['canceled'],tiktokExcl:['Canceled'],myShopifyExcl:['refunded'],myMixedSet:['PN-BU-SB-CGB10xCGCY10xCGSS10'],myStandalone:['PN-ES-CWPIC-15','PN-ES-PEH-2'],myMultiUnit:[],myAliases:[{from:'GKSB',to:'GKSBH'},{from:'MCP',to:'MCPH'}],myCustomBundles:[{sku:'PNSG-CGB15xSOSE15',components:['PN-SB-CGB-15','PN-SB-SOSE-15']},{sku:'PNSG-CGB1xSOSE1',components:['PN-SB-CGB6-30','PN-SB-SOSE-30']}]};
+const DEFAULT_MY={shopeeExcl:['Cancelled','Unpaid'],lazadaExcl:['canceled'],tiktokExcl:['Canceled'],myShopifyExcl:['refunded'],myMixedSet:['PN-BU-SB-CGB10xCGCY10xCGSS10'],myStandalone:['PN-ES-CWPIC-15','PN-ES-PEH-2'],myMultiUnit:[],myAliases:[{from:'GKSB',to:'GKSBH'},{from:'MCP',to:'MCPH'}],myCustomBundles:[{sku:'PNSG-CGB15xSOSE15',components:['PN-SB-CGB-15','PN-SB-SOSE-15']},{sku:'PNSG-CGB1xSOSE1',components:['PN-SB-CGB6-30','PN-SB-SOSE-30']},{sku:'PN-BU-CGB1XPHV1',components:['PN-SB-CGB6-30','PN-SB-PHV-30']}]};
 let MY_RULES=(()=>{
   try{
     const s=localStorage.getItem('icMyRules');
     if(!s)return JSON.parse(JSON.stringify(DEFAULT_MY));
     const saved=JSON.parse(s);
-    // Merge: keep saved values but fill in any missing keys from DEFAULT_MY
     const merged=JSON.parse(JSON.stringify(DEFAULT_MY));
     for(const key of Object.keys(merged)){
-      if(key in saved)merged[key]=saved[key];
+      if(!(key in saved))continue;
+      // For array-of-objects (bundles, aliases, multiUnit): merge defaults + user additions
+      if(Array.isArray(merged[key])&&merged[key].length&&typeof merged[key][0]==='object'){
+        const defaultSkus=new Set(merged[key].map(x=>x.sku||x.from||x));
+        const userExtra=saved[key].filter(x=>!defaultSkus.has(x.sku||x.from||x));
+        merged[key]=[...merged[key],...userExtra];
+      } else {
+        merged[key]=saved[key];
+      }
     }
     return merged;
   }catch{return JSON.parse(JSON.stringify(DEFAULT_MY));}
@@ -766,8 +773,10 @@ function compareMY(){
   }
   function classifyMY(sku){
     const skuUP=sku.toUpperCase();
-    if(BUNDLE_PFX.some(p=>skuUP.startsWith(p)))return MY_RULES.myMixedSet.some(s=>s.toUpperCase()===skuUP)?'standalone':'bundle';
+    // Custom bundles take priority — must check before prefix detection
     if(MY_RULES.myCustomBundles.some(b=>b.sku.toUpperCase()===skuUP))return'bundle';
+    if(MY_RULES.myMixedSet.some(s=>s.toUpperCase()===skuUP))return'standalone';
+    if(BUNDLE_PFX.some(p=>skuUP.startsWith(p)))return'bundle';
     if(MY_RULES.myStandalone.some(s=>s.toUpperCase()===skuUP))return'standalone';
     if(decodeMYMulti(sku))return'multi';
     return'standalone';
