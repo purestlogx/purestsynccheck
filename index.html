@@ -186,7 +186,28 @@ tr:last-child td{border-bottom:none;}
 /* TOAST */
 #toast{position:fixed;bottom:24px;right:24px;background:var(--white);border:1px solid var(--border);border-radius:var(--radius);padding:11px 18px;font-size:13px;font-weight:500;box-shadow:0 4px 12px rgba(0,0,0,.12);opacity:0;transform:translateY(6px);transition:all .25s;pointer-events:none;z-index:999;}
 #toast.show{opacity:1;transform:translateY(0);}
+.bundle-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px;}
+.bundle-card{background:var(--white);border:1px solid var(--border);border-radius:var(--radius);padding:16px;box-shadow:var(--shadow);}
+.bundle-sku{font-size:13px;font-weight:600;color:var(--text);margin-bottom:6px;word-break:break-all;}
+.bundle-comp{display:flex;align-items:center;justify-content:space-between;padding:5px 10px;background:var(--light);border-radius:5px;font-size:12px;margin-bottom:4px;}
+.bundle-comp-sku{font-weight:500;}
+.bundle-comp-qty{color:var(--accent);font-weight:600;}
+.bundle-type{font-size:10px;font-weight:600;padding:2px 7px;border-radius:4px;display:inline-block;margin-bottom:8px;}
+.bundle-type-prefix{background:var(--blue-lt);color:var(--blue);border:1px solid var(--blue-bd);}
+.bundle-type-custom{background:var(--purple-lt);color:var(--purple);border:1px solid var(--purple-bd);}
+.bundle-type-multi{background:var(--amber-lt);color:var(--amber);border:1px solid var(--amber-bd);}
+.badge-new{display:inline-block;background:var(--red);color:#fff;font-size:9px;font-weight:700;padding:1px 5px;border-radius:3px;margin-left:6px;letter-spacing:.3px;vertical-align:middle;}
 
+/* DARK MODE */
+[data-theme="dark"]{
+  --bg:#0f1117;--white:#1a1d26;--border:#2d3147;--text:#e8eaf0;--muted:#8892a4;--light:#151821;
+  --accent:#6c8ff8;--accent-lt:#1a2040;
+  --green:#3ecf8e;--green-lt:#0d2a1f;--green-bd:#1a4a36;
+  --red:#f07070;--red-lt:#2a1010;--red-bd:#4a2020;
+  --amber:#f5c060;--amber-lt:#2a2010;--amber-bd:#4a3820;
+  --blue:#6c8ff8;--blue-lt:#1a2040;--blue-bd:#2a3460;
+  --purple:#b08af0;--purple-lt:#1e1530;--purple-bd:#382a50;
+}
 /* RESPONSIVE */
 @media(max-width:700px){
   .page{padding:16px;}
@@ -203,11 +224,15 @@ tr:last-child td{border-bottom:none;}
 <body>
 
 <nav>
-  <div class="nav-logo">Purest Nest <span>Sync Check</span> <span style="font-size:10px;opacity:.4;font-weight:400">v3.1</span></div>
+  <div class="nav-logo">Purest Nest <span>Sync Check</span> <span style="font-size:10px;opacity:.4;font-weight:400">v3.2</span></div>
+  <div style="display:flex;align-items:center;gap:8px;">
+    <button id="dark-toggle" onclick="toggleDark()" style="padding:5px 10px;border-radius:6px;border:1px solid var(--border);background:transparent;cursor:pointer;font-size:14px;" title="Toggle dark mode">🌙</button>
   <div class="nav-tabs">
     <button class="nav-tab active" onclick="showPage('upload',this)">Upload</button>
     <button class="nav-tab" id="tab-dashboard" onclick="showPage('dashboard',this)">Dashboard</button>
     <button class="nav-tab" onclick="showPage('rules',this)">SKU Rules</button>
+    <button class="nav-tab" onclick="showPage('bundles',this)">Bundle Map</button>
+  </div>
   </div>
 </nav>
 
@@ -476,6 +501,17 @@ tr:last-child td{border-bottom:none;}
 
 <div id="toast"></div>
 
+<!-- BUNDLE MAP PAGE -->
+<div class="page" id="page-bundles">
+  <div class="page-heading">Bundle Mapping Viewer</div>
+  <div class="page-sub">All bundle SKUs and their decoded components. Run an audit first to populate from NJV data.</div>
+  <div id="bundle-map-content">
+    <div class="empty-state" style="background:var(--white);border:1px solid var(--border);border-radius:var(--radius);padding:48px;text-align:center;color:var(--muted)">
+      Run an MY audit first to populate the bundle map.
+    </div>
+  </div>
+</div>
+
 <script>
 // ══ STATE ════════════════════════════════════════════════════════
 const state={
@@ -538,6 +574,24 @@ function switchMarket(mkt,btn){
   // Rules page
   document.getElementById('rules-ph').style.display=mkt==='ph'?'':'none';
   document.getElementById('rules-my').style.display=mkt==='my'?'':'none';
+  // Dashboard — re-render for selected market if results exist
+  const activePage=document.querySelector('.page.active');
+  if(activePage&&activePage.id==='page-dashboard'){
+    if(state[mkt]&&state[mkt].results){
+      renderDashboard(state[mkt].results,mkt);
+    } else {
+      // No results for this market yet — show empty state
+      document.getElementById('alert-banner').className='alert-banner ok';
+      document.getElementById('alert-banner').querySelector('.alert-text').innerHTML='No audit run yet for this market. Go to <strong>Upload</strong> to run one.';
+      document.getElementById('alert-banner').querySelector('.alert-icon').textContent='ℹ️';
+      document.getElementById('dash-time').textContent='—';
+      document.getElementById('dash-market-label').textContent=mkt==='ph'?'🇵🇭 PH — Inspire':'🇲🇾 MY — NJV';
+      document.getElementById('tiles').innerHTML='';
+      document.getElementById('delta-row').innerHTML='';
+      document.getElementById('detail-label').textContent='Select a tile above to view details';
+      document.getElementById('detail-table').innerHTML='<div class="empty-state">Click any tile to see the details</div>';
+    }
+  }
 }
 
 // ══ NAVIGATION ════════════════════════════════════════════════════
@@ -547,7 +601,9 @@ function showPage(name,btn){
   document.getElementById('page-'+name).classList.add('active');
   if(btn)btn.classList.add('active');
   if(name==='rules')renderRules();
+  if(name==='bundles')renderBundleMap();
 }
+// [restore moved to bottom]
 
 // ══ FILE HANDLING ═════════════════════════════════════════════════
 function fixSheetRef(ws){
@@ -711,6 +767,7 @@ function compareMY(){
   // Build NJV map: Ship Instruction (primary) → External Order #1 (fallback)
   console.log('NJV rows:',state.my.njvData.length,'First row keys:',state.my.njvData[0]?Object.keys(state.my.njvData[0]):[]);
   const njvMap={};
+  const njvStatus={};
   for(const r of state.my.njvData){
     const shipInstr=String(r['Ship Instruction']||'').trim();
     const orderId=shipInstr||String(r['External Order #1']||'').trim();
@@ -722,6 +779,8 @@ function compareMY(){
     if(!orderId||!sku)continue;
     if(!njvMap[orderId])njvMap[orderId]={};
     njvMap[orderId][sku]=(njvMap[orderId][sku]||0)+qty;
+    // Track NJV status per order
+    if(!njvStatus[orderId])njvStatus[orderId]=String(r['Status']||'').trim();
   }
 
   // Build platform map: order → { SKU → qty }
@@ -960,7 +1019,7 @@ function compareMY(){
   const onlyNJVRows=[];
   for(const n of onlyNJV){const skus=Object.entries(njvMap[n]).map(([s,q])=>`${s} (×${q})`).join(', ');onlyNJVRows.push({order:n,skus,totalSkus:Object.keys(njvMap[n]).length});}
 
-  return{type:'my',excluded,platSource,excludedCount:Object.keys(excluded).length,platTotal:platNames.size+Object.keys(excluded).length,platActive:platNames.size,njvTotal:njvNames.size,common:common.length,onlyPlat,onlyNJV,onlyPlatRows,onlyNJVRows,missing,extra,match,mismatch};
+  return{type:'my',excluded,platSource,njvStatus,excludedCount:Object.keys(excluded).length,platTotal:platNames.size+Object.keys(excluded).length,platActive:platNames.size,njvTotal:njvNames.size,common:common.length,onlyPlat,onlyNJV,onlyPlatRows,onlyNJVRows,missing,extra,match,mismatch};
 }
 
 // ══ DASHBOARD ═════════════════════════════════════════════════════
@@ -985,6 +1044,7 @@ function makeGroup(badgeCls,badgeTxt,desc,tiles){
 function renderDashboard(r,market){
   curMarket=market;
   document.getElementById('dash-time').textContent=new Date().toLocaleString();
+  try{localStorage.setItem('icLastMarket',market);}catch(e){}
   document.getElementById('dash-market-label').textContent=market==='ph'?'🇵🇭 PH — Inspire':'🇲🇾 MY — NJV';
 
   const issueCounts=market==='ph'
@@ -1028,6 +1088,18 @@ function renderDashboard(r,market){
   }
   prevCounts[market]=issueCounts;
   localStorage.setItem('icPrevCounts2',JSON.stringify(prevCounts));
+  try{
+    // Save current issue order keys for "new" detection next run
+    const curKeys={
+      mismatch:new Set(r.mismatch.map(d=>d.order+'|'+d.shopifySku+'|'+d.inspireSku)),
+      missing: new Set(r.missing.map(d=>d.order+'|'+d.shopifySku)),
+      extra:   new Set(r.extra.map(d=>d.order+'|'+(d.inspireSku||d.njvSku))),
+    };
+    localStorage.setItem('icLastKeys_'+market,JSON.stringify({
+      mismatch:[...curKeys.mismatch],missing:[...curKeys.missing],extra:[...curKeys.extra]
+    }));
+    localStorage.setItem('icLastResults_'+market,JSON.stringify({results:r,ts:new Date().toISOString()}));
+  }catch(e){}
 
   // Tiles
   const el=document.getElementById('tiles');el.innerHTML='';
@@ -1052,6 +1124,14 @@ function showView(key){
   renderTable();
 }
 
+function isNewRow(key,type){
+  try{
+    const saved=localStorage.getItem('icLastKeys_'+curMarket);
+    if(!saved)return false;
+    const keys=JSON.parse(saved);
+    return keys[type]&&!keys[type].includes(key);
+  }catch{return false;}
+}
 function renderTable(){
   const r=curMarket==='ph'?state.ph.results:state.my.results;
   const isPH=curMarket==='ph';
@@ -1064,10 +1144,10 @@ function renderTable(){
     onlyIns: {title:'📋 Only in Inspire',      cols:['Order','Note'],rows:r.onlyIns.map(n=>[n,'No matching platform order'])},
     refunded:{title:'🚫 Refunded (Excluded)',  cols:['Order','Note'],rows:r.refunded.map(n=>[n,'Excluded — refunded'])},
   }:{
-    match:   {title:'✅ QTY Match',         cols:['Platform','Order','SKU','QTY'],rows:r.match.map(d=>[d.platform,d.order,d.platformSku,d.platformQty])},
-    mismatch:{title:'❌ QTY Mismatch',       cols:['Platform','Order','SKU','Platform QTY','NJV QTY','Diff','Remark'],rows:r.mismatch.map(d=>[d.platform,d.order,d.platformSku,d.platformQty,d.njvQty,d.diff,d.remark])},
-    missing: {title:'🔴 Missing from NJV',  cols:['Platform','Order','Platform SKU','Platform QTY','Issue'],rows:r.missing.map(d=>[d.platform,d.order,d.platformSku,d.platformQty,d.issue])},
-    extra:   {title:'🟡 Extra in NJV',      cols:['Platform','Order','NJV SKU','NJV QTY','Note'],rows:r.extra.map(d=>[d.platform,d.order,d.njvSku,d.njvQty,d.note])},
+    match:   {title:'✅ QTY Match',         cols:['Platform','Order','NJV Status','SKU','QTY'],rows:r.match.map(d=>[d.platform,d.order,(r.njvStatus&&r.njvStatus[d.order])||'',d.platformSku,d.platformQty])},
+    mismatch:{title:'❌ QTY Mismatch',       cols:['Platform','Order','NJV Status','SKU','Platform QTY','NJV QTY','Diff','Remark'],rows:r.mismatch.map(d=>[d.platform,d.order,(r.njvStatus&&r.njvStatus[d.order])||'',d.platformSku,d.platformQty,d.njvQty,d.diff,d.remark])},
+    missing: {title:'🔴 Missing from NJV',  cols:['Platform','Order','NJV Status','Platform SKU','Platform QTY','Issue'],rows:r.missing.map(d=>[d.platform,d.order,(r.njvStatus&&r.njvStatus[d.order])||'',d.platformSku,d.platformQty,d.issue])},
+    extra:   {title:'🟡 Extra in NJV',      cols:['Platform','Order','NJV Status','NJV SKU','NJV QTY','Note'],rows:r.extra.map(d=>[d.platform,d.order,(r.njvStatus&&r.njvStatus[d.order])||'',d.njvSku,d.njvQty,d.note])},
     onlyPlat:{title:'📋 Only in Platforms', cols:['Platform','Order','SKUs','# SKUs'],rows:r.onlyPlatRows.map(d=>[(r.platSource&&r.platSource[d.order])||'',d.order,d.skus,d.totalSkus])},
     onlyNJV: {title:'📋 Only in NJV',       cols:['Order','SKUs','# SKUs'],rows:r.onlyNJVRows.map(d=>[d.order,d.skus,d.totalSkus])},
     excl:    {title:'🚫 Cancelled (Excluded)',cols:['Order','Note'],rows:Object.keys(r.excluded||{}).sort().map(n=>[n,'Cancelled — excluded from audit'])},
@@ -1092,10 +1172,18 @@ function renderTable(){
     <div class="table-scroll">
     <table>
       <thead><tr>${v.cols.map(c=>`<th>${c}</th>`).join('')}</tr></thead>
-      <tbody>${paged.map(row=>`<tr>${row.map((cell,i)=>{
+      <tbody>${paged.map((row,ri)=>{
+        // Check if this row is new vs last run
+        let rowKey='',rowType='';
+        if(curView==='mismatch'){rowKey=row[1]+'|'+row[2]+'|'+row[3];rowType='mismatch';}
+        else if(curView==='missing'){rowKey=row[1]+'|'+row[2];rowType='missing';}
+        else if(curView==='extra'){rowKey=row[1]+'|'+row[2];rowType='extra';}
+        const isNew=rowKey&&isNewRow(rowKey,rowType);
+        return `<tr>${row.map((cell,i)=>{
         if(i===diffColIdx){const n=Number(cell);return`<td class="${n<0?'diff-less':'diff-more'}">${n>0?'+'+n:n}</td>`;}
         return`<td>${cell}</td>`;
-      }).join('')}</tr>`).join('')}</tbody>
+      }).join('')}${isNew?'<td><span class="badge-new">NEW</span></td>':''}</tr>`;
+      }).join('')}</tbody>
     </table></div>
     <div class="pager">
       <span class="pager-info">Page ${curPage} of ${total}</span>
@@ -1159,6 +1247,48 @@ function exportFullReport(){
 function dlFile(name,content,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([content],{type}));a.download=name;a.click();}
 
 // ══ RULES ═════════════════════════════════════════════════════════
+function renderBundleMap(){
+  const r=state.my.results;
+  const el=document.getElementById('bundle-map-content');
+  if(!r){el.innerHTML='<div class="empty-state" style="background:var(--white);border:1px solid var(--border);border-radius:var(--radius);padding:48px;text-align:center;color:var(--muted)">Run an MY audit first to populate the bundle map.</div>';return;}
+  // Build token map from NJV data (re-use same logic)
+  const njvData=state.my.njvData||[];
+  const tMap={};
+  for(const row of njvData){
+    const sku=String(row['Item']||'').trim().toUpperCase();
+    const tok=skuToken(sku);if(tok&&!sku.startsWith('BUNDLE -'))tMap[tok]=sku;
+    for(const {from,to} of MY_RULES.myAliases){
+      if(tok){const a=tok.replace(new RegExp(to,'i'),from);if(a!==tok)tMap[a]=sku;const b=tok.replace(new RegExp(from,'i'),to);if(b!==tok)tMap[b]=sku;}
+    }
+  }
+  // Collect all bundle SKUs seen in platform data
+  const seenBundles=new Set();
+  [...(state.my.shopify1Data||[]),...(state.my.shopify2Data||[]),...(state.my.shopeeData||[]),...(state.my.lazadaData||[]),...(state.my.tiktokData||[])].forEach(row=>{
+    const sku=String(row['Lineitem sku']||row['SKU Reference No.']||row['sellerSku']||row['Seller SKU']||'').trim();
+    if(classifyMY(sku)==='bundle'||classifyMY(sku)==='multi')seenBundles.add(sku);
+  });
+  if(!seenBundles.size){el.innerHTML='<div class="section-label">No bundle SKUs found in platform data.</div>';return;}
+  el.innerHTML=`<div class="section-label">${seenBundles.size} bundle/multi-unit SKU${seenBundles.size!==1?'s':''} found in platform data</div><div class="bundle-grid" id="bundle-cards"></div>`;
+  const grid=document.getElementById('bundle-cards');
+  for(const sku of [...seenBundles].sort()){
+    const kind=classifyMY(sku);
+    let comps=[];let typeLabel='';let typeCls='';
+    if(kind==='bundle'){
+      comps=decodeMYBundle(sku)||[];
+      const isCust=MY_RULES.myCustomBundles.some(b=>b.sku.toUpperCase()===sku.toUpperCase());
+      typeLabel=isCust?'Custom Bundle':'Bundle';typeCls=isCust?'bundle-type-custom':'bundle-type-prefix';
+    } else if(kind==='multi'){
+      const d=decodeMYMulti(sku);
+      if(d)comps=[{sku:d.mother,qty:d.n}];
+      typeLabel='Multi-Unit';typeCls='bundle-type-multi';
+    }
+    const card=document.createElement('div');card.className='bundle-card';
+    const compHtml=comps.map(c=>`<div class="bundle-comp"><span class="bundle-comp-sku">${typeof c==='object'?c.sku:c}</span><span class="bundle-comp-qty">${typeof c==='object'&&c.qty>1?`×${c.qty}`:''}</span></div>`).join('');
+    card.innerHTML=`<span class="bundle-type ${typeCls}">${typeLabel}</span><div class="bundle-sku">${sku}</div><div style="font-size:11px;color:var(--muted);margin-bottom:6px;">↓ expands to</div>${compHtml||'<div style="font-size:12px;color:var(--red)">⚠️ Could not decode</div>'}`;
+    grid.appendChild(card);
+  }
+}
+
 function renderRules(){
   // PH
   ['mixed','standalone','excluded'].forEach(k=>{
@@ -1196,9 +1326,43 @@ function addMYAlias(){const from=document.getElementById('input-alias-from').val
 function removeMYAlias(i){MY_RULES.myAliases.splice(i,1);saveMYRules();renderRules();}
 function addMYMultiUnit(){const sku=document.getElementById('input-my-mu-sku').value.trim(),mother=document.getElementById('input-my-mu-mother').value.trim(),mult=+document.getElementById('input-my-mu-mult').value;if(!sku||!mother||!mult){toast('Please fill in all fields',true);return;}MY_RULES.myMultiUnit.push({sku,mother,mult});saveMYRules();renderRules();['my-mu-sku','my-mu-mother','my-mu-mult'].forEach(k=>document.getElementById('input-'+k).value='');toast('Rule saved ✓');}
 function removeMYMulti(i){MY_RULES.myMultiUnit.splice(i,1);saveMYRules();renderRules();}
+function toggleDark(){
+  const html=document.documentElement;
+  const isDark=html.getAttribute('data-theme')==='dark';
+  html.setAttribute('data-theme',isDark?'light':'dark');
+  document.getElementById('dark-toggle').textContent=isDark?'🌙':'☀️';
+  try{localStorage.setItem('icDarkMode',isDark?'0':'1');}catch(e){}
+}
+
+
 function toast(msg,err){const el=document.getElementById('toast');el.textContent=msg;el.style.borderColor=err?'var(--red-bd)':'var(--green-bd)';el.style.color=err?'var(--red)':'var(--green)';el.classList.add('show');setTimeout(()=>el.classList.remove('show'),2500);}
 
 renderRules();
+// Restore last results and dark mode after all functions are defined
+(function(){
+  // Dark mode
+  try{if(localStorage.getItem('icDarkMode')==='1'){document.documentElement.setAttribute('data-theme','dark');const btn=document.getElementById('dark-toggle');if(btn)btn.textContent='☀️';}}catch(e){}
+  // Last results
+  ['ph','my'].forEach(mkt=>{
+    try{
+      const saved=localStorage.getItem('icLastResults_'+mkt);
+      if(!saved)return;
+      const {results}=JSON.parse(saved);
+      if(!results)return;
+      state[mkt].results=results;
+    }catch(e){}
+  });
+  const lastMkt=localStorage.getItem('icLastMarket');
+  if(lastMkt&&state[lastMkt]&&state[lastMkt].results){
+    const r=state[lastMkt].results;
+    renderDashboard(r,lastMkt);
+    document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+    document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
+    document.getElementById('page-dashboard').classList.add('active');
+    document.getElementById('tab-dashboard').classList.add('active');
+    switchMarket(lastMkt,document.getElementById('mkt-'+lastMkt));
+  }
+})();
 </script>
 </body>
 </html>
