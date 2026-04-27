@@ -224,7 +224,7 @@ tr:last-child td{border-bottom:none;}
 <body>
 
 <nav>
-  <div class="nav-logo">Purest Nest <span>Sync Check</span> <span style="font-size:10px;opacity:.4;font-weight:400">v3.2</span></div>
+  <div class="nav-logo">Purest Nest <span>Sync Check</span> <span style="font-size:10px;opacity:.4;font-weight:400">v3.3</span></div>
   <div style="display:flex;align-items:center;gap:8px;">
     <button id="dark-toggle" onclick="toggleDark()" style="padding:5px 10px;border-radius:6px;border:1px solid var(--border);background:transparent;cursor:pointer;font-size:14px;" title="Toggle dark mode">🌙</button>
   <div class="nav-tabs">
@@ -291,10 +291,11 @@ tr:last-child td{border-bottom:none;}
     <div class="section-divider">Platform Orders</div>
     <input type="file" id="my-file-shopify1" accept=".csv" style="display:none" onchange="handleFileMY('shopify1',this)"/>
     <input type="file" id="my-file-shopify2" accept=".csv" style="display:none" onchange="handleFileMY('shopify2',this)"/>
+    <input type="file" id="my-file-shopify3" accept=".csv" style="display:none" onchange="handleFileMY('shopify3',this)"/>
     <input type="file" id="my-file-shopee"  accept=".xlsx,.xls,.csv" style="display:none" onchange="handleFileMY('shopee',this)"/>
     <input type="file" id="my-file-lazada"  accept=".xlsx,.xls,.csv" style="display:none" onchange="handleFileMY('lazada',this)"/>
     <input type="file" id="my-file-tiktok"  accept=".csv,.xlsx" style="display:none" onchange="handleFileMY('tiktok',this)"/>
-    <div class="upload-grid cols-4" style="grid-template-columns:1fr 1fr 1fr 1fr 1fr 1fr;">
+    <div class="upload-grid cols-4" style="grid-template-columns:1fr 1fr 1fr 1fr 1fr 1fr 1fr;">
       <label class="drop-zone" id="my-zone-shopify1" for="my-file-shopify1">
         <div class="drop-icon">🛍</div>
         <div class="drop-label">Shopify (Store 1)</div>
@@ -308,6 +309,13 @@ tr:last-child td{border-bottom:none;}
         <div class="drop-sub">CSV</div>
         <div class="drop-filename" id="my-name-shopify2">Optional</div>
         <span class="drop-remove" onclick="removeFile('my-zone-shopify2','my-file-shopify2','my')">✕ Remove</span>
+      </label>
+      <label class="drop-zone" id="my-zone-shopify3" for="my-file-shopify3">
+        <div class="drop-icon">🛍</div>
+        <div class="drop-label">Shopify (Store 3)</div>
+        <div class="drop-sub">CSV</div>
+        <div class="drop-filename" id="my-name-shopify3">Optional</div>
+        <span class="drop-remove" onclick="removeFile('my-zone-shopify3','my-file-shopify3','my')">✕ Remove</span>
       </label>
       <label class="drop-zone" id="my-zone-shopee" for="my-file-shopee">
         <div class="drop-icon">🟠</div>
@@ -517,7 +525,7 @@ tr:last-child td{border-bottom:none;}
 const state={
   market:'ph',
   ph:{shopifyData:null,inspireData:null,results:null},
-  my:{njvData:null,shopify1Data:null,shopify2Data:null,shopeeData:null,lazadaData:null,tiktokData:null,results:null},
+  my:{njvData:null,shopify1Data:null,shopify2Data:null,shopify3Data:null,shopeeData:null,lazadaData:null,tiktokData:null,results:null},
 };
 let prevCounts={ph:null,my:null};
 try{const p=JSON.parse(localStorage.getItem('icPrevCounts2'));if(p)prevCounts=p;}catch{}
@@ -678,6 +686,7 @@ function removeFile(zoneId, fileId, market){
   } else {
     if(type==='shopify1')state.my.shopify1Data=null;
     if(type==='shopify2')state.my.shopify2Data=null;
+    if(type==='shopify3')state.my.shopify3Data=null;
     if(type==='njv')state.my.njvData=null;
     if(type==='shopee')state.my.shopeeData=null;
     if(type==='lazada')state.my.lazadaData=null;
@@ -798,7 +807,7 @@ function compareMY(){
   }
 
   // Shopify MY — merge store 1 and store 2
-  const shopifyMYData=[...(state.my.shopify1Data||[]),...(state.my.shopify2Data||[])];
+  const shopifyMYData=[...(state.my.shopify1Data||[]),...(state.my.shopify2Data||[]),...(state.my.shopify3Data||[])];
   if(shopifyMYData.length){
     const excl=new Set(MY_RULES.myShopifyExcl.map(s=>s.toLowerCase()));
     let lastStatus='';
