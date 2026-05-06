@@ -227,7 +227,7 @@ tr:last-child td{border-bottom:none;}
 <body>
 
 <nav>
-  <div class="nav-logo">Purest Nest <span>Sync Check</span> <span style="font-size:10px;opacity:.4;font-weight:400">v3.3</span></div>
+  <div class="nav-logo">Purest Nest <span>Sync Check</span> <span style="font-size:10px;opacity:.4;font-weight:400">v3.4</span></div>
   <div style="display:flex;align-items:center;gap:8px;">
     <button id="dark-toggle" onclick="toggleDark()" style="padding:5px 10px;border-radius:6px;border:1px solid var(--border);background:transparent;cursor:pointer;font-size:14px;" title="Toggle dark mode">🌙</button>
   <div class="nav-tabs">
@@ -373,13 +373,17 @@ tr:last-child td{border-bottom:none;}
 
 <!-- ══ RULES ══════════════════════════════════════════════════ -->
 <div class="page" id="page-rules">
+  <!-- Admin lock bar -->
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px;">
+    <div>
+      <div style="font-size:13px;color:var(--muted)">SKU Rules are <span id="admin-status-text">read-only</span>. Click Admin to edit.</div>
+    </div>
+    <button id="admin-lock-btn" onclick="toggleAdmin()">🔒 Admin</button>
+  </div>
   <!-- PH Rules -->
   <div id="rules-ph">
-    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:4px">
-      <div class="page-heading" style="margin-bottom:0">SKU Rules — PH (Inspire)</div>
-      <button id="admin-lock-btn" onclick="toggleAdmin()">🔒 Admin</button>
-    </div>
-    <div class="page-sub">Configure how SKUs are interpreted for the PH market. Changes apply on the next run. <span style="color:var(--muted);font-size:12px">(View only — click Admin to edit)</span></div>
+    <div class="page-heading">SKU Rules — PH (Inspire)</div>
+    <div class="page-sub">Configure how SKUs are interpreted for the PH market. Changes apply on the next run.</div>
     <div class="rules-grid">
       <div class="rule-card">
         <div class="rule-card-title">Mixed Set SKUs</div>
@@ -552,18 +556,20 @@ const db=firebase.firestore();
 // ── Admin state ────────────────────────────────────────────────────────────
 let adminUnlocked=false;
 function toggleAdmin(){
+  const btn=document.getElementById('admin-lock-btn');
+  const statusText=document.getElementById('admin-status-text');
   if(adminUnlocked){
     adminUnlocked=false;
     document.body.classList.remove('admin-unlocked');
-    const btn=document.getElementById('admin-lock-btn');
     if(btn){btn.textContent='🔒 Admin';btn.classList.remove('unlocked');}
+    if(statusText)statusText.textContent='read-only';
   } else {
     const pw=prompt('Enter admin password:');
     if(pw==='Purest2025'){
       adminUnlocked=true;
       document.body.classList.add('admin-unlocked');
-      const btn=document.getElementById('admin-lock-btn');
       if(btn){btn.textContent='🔓 Admin';btn.classList.add('unlocked');}
+      if(statusText)statusText.textContent='edit mode';
     } else if(pw!==null){
       setTimeout(()=>toast('Incorrect password',true),100);
     }
