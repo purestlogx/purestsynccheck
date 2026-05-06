@@ -221,6 +221,8 @@ tr:last-child td{border-bottom:none;}
   .tile{min-width:calc(50% - 4px);flex:1 1 calc(50% - 4px);}
 }
 </style>
+<script src="https://www.gstatic.com/firebasejs/10.11.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore-compat.js"></script>
 </head>
 <body>
 
@@ -373,8 +375,11 @@ tr:last-child td{border-bottom:none;}
 <div class="page" id="page-rules">
   <!-- PH Rules -->
   <div id="rules-ph">
-    <div class="page-heading">SKU Rules — PH (Inspire)</div>
-    <div class="page-sub">Configure how SKUs are interpreted for the PH market. Changes apply on the next run.</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:4px">
+      <div class="page-heading" style="margin-bottom:0">SKU Rules — PH (Inspire)</div>
+      <button id="admin-lock-btn" onclick="toggleAdmin()">🔒 Admin</button>
+    </div>
+    <div class="page-sub">Configure how SKUs are interpreted for the PH market. Changes apply on the next run. <span style="color:var(--muted);font-size:12px">(View only — click Admin to edit)</span></div>
     <div class="rules-grid">
       <div class="rule-card">
         <div class="rule-card-title">Mixed Set SKUs</div>
@@ -532,45 +537,92 @@ let prevCounts={ph:null,my:null};
 try{const p=JSON.parse(localStorage.getItem('icPrevCounts2'));if(p)prevCounts=p;}catch{}
 
 // PH Rules
+// ── Firebase Setup ────────────────────────────────────────────────────────
+const firebaseConfig={
+  apiKey:"AIzaSyAzibrJ1TCtv6pojhBQYEvxqKtLsWMabs4",
+  authDomain:"purest-sync-tool.firebaseapp.com",
+  projectId:"purest-sync-tool",
+  storageBucket:"purest-sync-tool.firebasestorage.app",
+  messagingSenderId:"634850390349",
+  appId:"1:634850390349:web:6fd3ba4964e2152e55c704"
+};
+firebase.initializeApp(firebaseConfig);
+const db=firebase.firestore();
+
+// ── Admin state ────────────────────────────────────────────────────────────
+let adminUnlocked=false;
+function toggleAdmin(){
+  if(adminUnlocked){
+    adminUnlocked=false;
+    document.body.classList.remove('admin-unlocked');
+    const btn=document.getElementById('admin-lock-btn');
+    if(btn){btn.textContent='🔒 Admin';btn.classList.remove('unlocked');}
+  } else {
+    const pw=prompt('Enter admin password:');
+    if(pw==='Purest2025'){
+      adminUnlocked=true;
+      document.body.classList.add('admin-unlocked');
+      const btn=document.getElementById('admin-lock-btn');
+      if(btn){btn.textContent='🔓 Admin';btn.classList.add('unlocked');}
+    } else if(pw!==null){
+      setTimeout(()=>toast('Incorrect password',true),100);
+    }
+  }
+}
+function requireAdmin(){if(!adminUnlocked){toast('Admin access required',true);return false;}return true;}
+
+// ── Default rules ─────────────────────────────────────────────────────────
 const DEFAULT_PH={mixedSet:['PN-BUNDLE-CGB610+CGCY610+CGSS610'],standalone:['PN-ES-PEH-2','PN-SB-CGCY6-5'],excluded:['refunded'],multiUnit:[{sku:'PN-SB-SOSE-90',mother:'PN-SB-SOSE-30',mult:3}]};
-let PH_RULES=(()=>{
-  try{
-    const s=localStorage.getItem('icRules');
-    if(!s)return JSON.parse(JSON.stringify(DEFAULT_PH));
-    const saved=JSON.parse(s);
-    const merged=JSON.parse(JSON.stringify(DEFAULT_PH));
-    for(const key of Object.keys(merged)){
-      if(key in saved)merged[key]=saved[key];
-    }
-    return merged;
-  }catch{return JSON.parse(JSON.stringify(DEFAULT_PH));}
-})();
-
-// MY Rules
 const DEFAULT_MY={shopeeExcl:['Cancelled','Unpaid'],lazadaExcl:['canceled'],tiktokExcl:['Canceled'],myShopifyExcl:['refunded'],myMixedSet:['PN-BU-SB-CGB10xCGCY10xCGSS10'],myStandalone:['PN-ES-CWPIC-15','PN-ES-PEH-2'],myMultiUnit:[],myAliases:[{from:'GKSB',to:'GKSBH'},{from:'MCP',to:'MCPH'}],myCustomBundles:[{sku:'PNSG-CGB15xSOSE15',components:['PN-SB-CGB-15','PN-SB-SOSE-15']},{sku:'PNSG-CGB1xSOSE1',components:['PN-SB-CGB6-30','PN-SB-SOSE-30']},{sku:'PN-BU-CGB1XPHV1',components:['PN-SB-CGB6-30','PN-SB-PHV-30']}]};
-let MY_RULES=(()=>{
-  try{
-    const s=localStorage.getItem('icMyRules');
-    if(!s)return JSON.parse(JSON.stringify(DEFAULT_MY));
-    const saved=JSON.parse(s);
-    const merged=JSON.parse(JSON.stringify(DEFAULT_MY));
-    for(const key of Object.keys(merged)){
-      if(!(key in saved))continue;
-      // For array-of-objects (bundles, aliases, multiUnit): merge defaults + user additions
-      if(Array.isArray(merged[key])&&merged[key].length&&typeof merged[key][0]==='object'){
-        const defaultSkus=new Set(merged[key].map(x=>x.sku||x.from||x));
-        const userExtra=saved[key].filter(x=>!defaultSkus.has(x.sku||x.from||x));
-        merged[key]=[...merged[key],...userExtra];
-      } else {
-        merged[key]=saved[key];
-      }
-    }
-    return merged;
-  }catch{return JSON.parse(JSON.stringify(DEFAULT_MY));}
-})();
 
-const savePHRules=()=>localStorage.setItem('icRules',JSON.stringify(PH_RULES));
-const saveMYRules=()=>localStorage.setItem('icMyRules',JSON.stringify(MY_RULES));
+let PH_RULES=JSON.parse(JSON.stringify(DEFAULT_PH));
+let MY_RULES=JSON.parse(JSON.stringify(DEFAULT_MY));
+
+// ── Load rules from Firestore ─────────────────────────────────────────────
+async function loadRulesFromFirestore(){
+  try{
+    const phDoc=await db.collection('rules').doc('ph').get();
+    if(phDoc.exists){
+      const saved=phDoc.data();
+      const merged=JSON.parse(JSON.stringify(DEFAULT_PH));
+      for(const key of Object.keys(merged)){if(key in saved)merged[key]=saved[key];}
+      PH_RULES=merged;
+    }
+  }catch(e){
+    console.warn('Firestore PH load failed, using localStorage fallback:',e);
+    try{const s=localStorage.getItem('icRules');if(s){const saved=JSON.parse(s);const merged=JSON.parse(JSON.stringify(DEFAULT_PH));for(const key of Object.keys(merged)){if(key in saved)merged[key]=saved[key];}PH_RULES=merged;}}catch{}
+  }
+  try{
+    const myDoc=await db.collection('rules').doc('my').get();
+    if(myDoc.exists){
+      const saved=myDoc.data();
+      const merged=JSON.parse(JSON.stringify(DEFAULT_MY));
+      for(const key of Object.keys(merged)){
+        if(!(key in saved))continue;
+        if(Array.isArray(merged[key])&&merged[key].length&&typeof merged[key][0]==='object'){
+          const defaultSkus=new Set(merged[key].map(x=>x.sku||x.from||x));
+          const userExtra=saved[key].filter(x=>!defaultSkus.has(x.sku||x.from||x));
+          merged[key]=[...merged[key],...userExtra];
+        }else{merged[key]=saved[key];}
+      }
+      MY_RULES=merged;
+    }
+  }catch(e){
+    console.warn('Firestore MY load failed, using localStorage fallback:',e);
+    try{const s=localStorage.getItem('icMyRules');if(s){const saved=JSON.parse(s);const merged=JSON.parse(JSON.stringify(DEFAULT_MY));for(const key of Object.keys(merged)){if(!(key in saved))continue;if(Array.isArray(merged[key])&&merged[key].length&&typeof merged[key][0]==='object'){const defaultSkus=new Set(merged[key].map(x=>x.sku||x.from||x));const userExtra=saved[key].filter(x=>!defaultSkus.has(x.sku||x.from||x));merged[key]=[...merged[key],...userExtra];}else{merged[key]=saved[key];}}MY_RULES=merged;}}catch{}
+  }
+  renderRules();
+}
+
+// ── Save rules to Firestore (+ localStorage backup) ───────────────────────
+const savePHRules=async()=>{
+  try{await db.collection('rules').doc('ph').set(JSON.parse(JSON.stringify(PH_RULES)));localStorage.setItem('icRules',JSON.stringify(PH_RULES));}
+  catch(e){console.error('PH save failed:',e);toast('Save failed — check connection',true);}
+};
+const saveMYRules=async()=>{
+  try{await db.collection('rules').doc('my').set(JSON.parse(JSON.stringify(MY_RULES)));localStorage.setItem('icMyRules',JSON.stringify(MY_RULES));}
+  catch(e){console.error('MY save failed:',e);toast('Save failed — check connection',true);}
+};
 
 // ══ MARKET SWITCHER ═══════════════════════════════════════════════
 function switchMarket(mkt,btn){
@@ -1314,13 +1366,14 @@ function renderRules(){
   document.getElementById('tags-my-custombundles').innerHTML=MY_RULES.myCustomBundles.map((b,i)=>`<span class="tag" style="flex-direction:column;align-items:flex-start;gap:2px;padding:6px 10px"><span style="display:flex;align-items:center;justify-content:space-between;width:100%;gap:8px"><strong>${b.sku}</strong><span class="tag-remove" onclick="removeCustomBundle(${i})">×</span></span><span style="font-size:11px;opacity:.7">${b.components.join(', ')}</span></span>`).join('');
   document.getElementById('tags-my-aliases').innerHTML=MY_RULES.myAliases.map((a,i)=>`<span class="tag">${a.from} = ${a.to}<span class="tag-remove" onclick="removeMYAlias(${i})">×</span></span>`).join('');
 }
-function addTag(k){const inp=document.getElementById('input-'+k),v=inp.value.trim();if(!v)return;const arr={mixed:PH_RULES.mixedSet,standalone:PH_RULES.standalone,excluded:PH_RULES.excluded}[k];if(!arr.includes(v)){arr.push(v);savePHRules();renderRules();toast('Rule saved ✓');}inp.value='';}
-function removeTag(k,i){({mixed:PH_RULES.mixedSet,standalone:PH_RULES.standalone,excluded:PH_RULES.excluded})[k].splice(i,1);savePHRules();renderRules();}
-function addMultiUnit(){const sku=document.getElementById('input-mu-sku').value.trim(),mother=document.getElementById('input-mu-mother').value.trim(),mult=+document.getElementById('input-mu-mult').value;if(!sku||!mother||!mult){toast('Please fill in all fields',true);return;}PH_RULES.multiUnit.push({sku,mother,mult});savePHRules();renderRules();['mu-sku','mu-mother','mu-mult'].forEach(k=>document.getElementById('input-'+k).value='');toast('Rule saved ✓');}
-function removeMulti(i){PH_RULES.multiUnit.splice(i,1);savePHRules();renderRules();}
-function addMyTag(key,elKey){const inp=document.getElementById('input-'+elKey),v=inp.value.trim();if(!v)return;if(!MY_RULES[key].includes(v)){MY_RULES[key].push(v);saveMYRules();renderRules();toast('Rule saved ✓');}inp.value='';}
-function removeMyTag(key,elKey,i){MY_RULES[key].splice(i,1);saveMYRules();renderRules();}
+function addTag(k){if(!requireAdmin())return;const inp=document.getElementById('input-'+k),v=inp.value.trim();if(!v)return;const arr={mixed:PH_RULES.mixedSet,standalone:PH_RULES.standalone,excluded:PH_RULES.excluded}[k];if(!arr.includes(v)){arr.push(v);savePHRules();renderRules();toast('Rule saved ✓');}inp.value='';}
+function removeTag(k,i){if(!requireAdmin())return;({mixed:PH_RULES.mixedSet,standalone:PH_RULES.standalone,excluded:PH_RULES.excluded})[k].splice(i,1);savePHRules();renderRules();}
+function addMultiUnit(){if(!requireAdmin())return;const sku=document.getElementById('input-mu-sku').value.trim(),mother=document.getElementById('input-mu-mother').value.trim(),mult=+document.getElementById('input-mu-mult').value;if(!sku||!mother||!mult){toast('Please fill in all fields',true);return;}PH_RULES.multiUnit.push({sku,mother,mult});savePHRules();renderRules();['mu-sku','mu-mother','mu-mult'].forEach(k=>document.getElementById('input-'+k).value='');toast('Rule saved ✓');}
+function removeMulti(i){if(!requireAdmin())return;PH_RULES.multiUnit.splice(i,1);savePHRules();renderRules();}
+function addMyTag(key,elKey){if(!requireAdmin())return;const inp=document.getElementById('input-'+elKey),v=inp.value.trim();if(!v)return;if(!MY_RULES[key].includes(v)){MY_RULES[key].push(v);saveMYRules();renderRules();toast('Rule saved ✓');}inp.value='';}
+function removeMyTag(key,elKey,i){if(!requireAdmin())return;MY_RULES[key].splice(i,1);saveMYRules();renderRules();}
 function addCustomBundle(){
+  if(!requireAdmin())return;
   const sku=document.getElementById('input-cb-sku').value.trim();
   const comps=document.getElementById('input-cb-comps').value.split(',').map(s=>s.trim()).filter(Boolean);
   if(!sku||!comps.length){toast('Please enter a bundle SKU and at least one component',true);return;}
@@ -1331,11 +1384,11 @@ function addCustomBundle(){
   document.getElementById('input-cb-sku').value='';
   document.getElementById('input-cb-comps').value='';
 }
-function removeCustomBundle(i){MY_RULES.myCustomBundles.splice(i,1);saveMYRules();renderRules();}
-function addMYAlias(){const from=document.getElementById('input-alias-from').value.trim().toUpperCase(),to=document.getElementById('input-alias-to').value.trim().toUpperCase();if(!from||!to){toast('Please fill in both fields',true);return;}if(!MY_RULES.myAliases.find(a=>a.from===from&&a.to===to)){MY_RULES.myAliases.push({from,to});saveMYRules();renderRules();toast('Alias saved ✓');}document.getElementById('input-alias-from').value='';document.getElementById('input-alias-to').value='';}
-function removeMYAlias(i){MY_RULES.myAliases.splice(i,1);saveMYRules();renderRules();}
-function addMYMultiUnit(){const sku=document.getElementById('input-my-mu-sku').value.trim(),mother=document.getElementById('input-my-mu-mother').value.trim(),mult=+document.getElementById('input-my-mu-mult').value;if(!sku||!mother||!mult){toast('Please fill in all fields',true);return;}MY_RULES.myMultiUnit.push({sku,mother,mult});saveMYRules();renderRules();['my-mu-sku','my-mu-mother','my-mu-mult'].forEach(k=>document.getElementById('input-'+k).value='');toast('Rule saved ✓');}
-function removeMYMulti(i){MY_RULES.myMultiUnit.splice(i,1);saveMYRules();renderRules();}
+function removeCustomBundle(i){if(!requireAdmin())return;MY_RULES.myCustomBundles.splice(i,1);saveMYRules();renderRules();}
+function addMYAlias(){if(!requireAdmin())return;const from=document.getElementById('input-alias-from').value.trim().toUpperCase(),to=document.getElementById('input-alias-to').value.trim().toUpperCase();if(!from||!to){toast('Please fill in both fields',true);return;}if(!MY_RULES.myAliases.find(a=>a.from===from&&a.to===to)){MY_RULES.myAliases.push({from,to});saveMYRules();renderRules();toast('Alias saved ✓');}document.getElementById('input-alias-from').value='';document.getElementById('input-alias-to').value='';}
+function removeMYAlias(i){if(!requireAdmin())return;MY_RULES.myAliases.splice(i,1);saveMYRules();renderRules();}
+function addMYMultiUnit(){if(!requireAdmin())return;const sku=document.getElementById('input-my-mu-sku').value.trim(),mother=document.getElementById('input-my-mu-mother').value.trim(),mult=+document.getElementById('input-my-mu-mult').value;if(!sku||!mother||!mult){toast('Please fill in all fields',true);return;}MY_RULES.myMultiUnit.push({sku,mother,mult});saveMYRules();renderRules();['my-mu-sku','my-mu-mother','my-mu-mult'].forEach(k=>document.getElementById('input-'+k).value='');toast('Rule saved ✓');}
+function removeMYMulti(i){if(!requireAdmin())return;MY_RULES.myMultiUnit.splice(i,1);saveMYRules();renderRules();}
 function toggleDark(){
   const html=document.documentElement;
   const isDark=html.getAttribute('data-theme')==='dark';
@@ -1347,7 +1400,7 @@ function toggleDark(){
 
 function toast(msg,err){const el=document.getElementById('toast');el.textContent=msg;el.style.borderColor=err?'var(--red-bd)':'var(--green-bd)';el.style.color=err?'var(--red)':'var(--green)';el.classList.add('show');setTimeout(()=>el.classList.remove('show'),2500);}
 
-renderRules();
+loadRulesFromFirestore();
 // Restore last results and dark mode after all functions are defined
 (function(){
   // Dark mode
