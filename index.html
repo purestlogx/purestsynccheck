@@ -227,7 +227,7 @@ tr:last-child td{border-bottom:none;}
 <body>
 
 <nav>
-  <div class="nav-logo">Purest Nest <span>Sync Check</span> <span style="font-size:10px;opacity:.4;font-weight:400">v3.4</span></div>
+  <div class="nav-logo">Purest Nest <span>Sync Check</span> <span style="font-size:10px;opacity:.4;font-weight:400">v3.5</span></div>
   <div style="display:flex;align-items:center;gap:8px;">
     <button id="dark-toggle" onclick="toggleDark()" style="padding:5px 10px;border-radius:6px;border:1px solid var(--border);background:transparent;cursor:pointer;font-size:14px;" title="Toggle dark mode">🌙</button>
   <div class="nav-tabs">
@@ -813,7 +813,7 @@ function comparePH(){
   const shoNames=new Set(Object.keys(shoMap)),insNames=new Set(Object.keys(insMap));
   const common=[...shoNames].filter(n=>insNames.has(n));
   const onlySho=[...shoNames].filter(n=>!insNames.has(n)).sort();
-  const onlyIns=[...insNames].filter(n=>!shoNames.has(n)).sort();
+  const onlyIns=[...insNames].filter(n=>!shoNames.has(n)&&!refunded.has(n)).sort();
   const missing=[],extra=[],match=[],mismatch=[];
   function rec(name,shopSku,insSku,sq,iq){const row={order:name,shopifySku:shopSku,inspireSku:insSku,sq,iq};if(sq===iq)match.push(row);else mismatch.push({...row,diff:sq-iq,remark:iq>sq?`Inspire has ${iq-sq} more`:`Inspire has ${sq-iq} less`});}
   for(const name of common.sort()){
@@ -924,7 +924,7 @@ function compareMY(){
   const njvNames=new Set(Object.keys(njvMap));
   const common=[...platNames].filter(n=>njvNames.has(n));
   const onlyPlat=[...platNames].filter(n=>!njvNames.has(n)).sort();
-  const onlyNJV=[...njvNames].filter(n=>!platNames.has(n)).sort();
+  const onlyNJV=[...njvNames].filter(n=>!platNames.has(n)&&!excluded[n]).sort();
 
   // Build NJV token map for bundle decoding (same logic as PH)
   const myTokenMap={};
