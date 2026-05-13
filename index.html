@@ -279,7 +279,7 @@ tr:last-child td{border-bottom:none;}
 <body>
 
 <nav>
-  <div class="nav-logo">Purest Nest <span>Sync Check</span> <span style="font-size:10px;opacity:.4;font-weight:400">v3.8</span></div>
+  <div class="nav-logo">Purest Nest <span>Sync Check</span> <span style="font-size:10px;opacity:.4;font-weight:400">v3.9</span></div>
   <div style="display:flex;align-items:center;gap:8px;">
     <button id="dark-toggle" onclick="toggleDark()" style="padding:5px 10px;border-radius:6px;border:1px solid var(--border);background:transparent;cursor:pointer;font-size:14px;" title="Toggle dark mode">🌙</button>
   <div class="nav-tabs">
@@ -533,7 +533,7 @@ tr:last-child td{border-bottom:none;}
         <div class="tag-list" id="tags-my-custombundles"></div>
         <div class="multi-field-group">
           <div class="multi-row"><span class="multi-label">Bundle SKU</span><input class="rule-input" id="input-cb-sku" placeholder="e.g. PNSG-CGB15xSOSE15"/></div>
-          <div class="multi-row"><span class="multi-label">Components</span><input class="rule-input" id="input-cb-comps" placeholder="e.g. PN-SB-CGB-15, PN-SB-SOSE-15"/></div>
+          <div class="multi-row"><span class="multi-label">Components</span><input class="rule-input" id="input-cb-comps" placeholder="e.g. PN-SB-CGB-15×2, PN-SB-SOSE-15×1"/></div>
           <div class="multi-row" style="justify-content:flex-end"><button class="rule-add-btn" onclick="addCustomBundle()">Add</button></div>
         </div>
       </div>
@@ -1028,7 +1028,7 @@ function compareMY(){
     if(MY_RULES.myMixedSet.some(s=>s.toUpperCase()===sku.toUpperCase()))return null;
     // Custom bundle MUST be checked first — takes priority over prefix decoder
     const cb=MY_RULES.myCustomBundles.find(b=>b.sku.toUpperCase()===sku.toUpperCase());
-    if(cb)return cb.components.length?cb.components.map(s=>({sku:s,qty:1})):null;
+    if(cb)return cb.components.length?cb.components.map(c=>typeof c==='object'?c:{sku:c,qty:1}):null;
     // Standard bundle prefix — strip prefix and decode tokens with multi-unit support
     for(const p of BUNDLE_PFX){
       if(sku.toUpperCase().startsWith(p)){
@@ -1449,7 +1449,7 @@ function renderRules(){
     document.getElementById('tags-'+elKey).innerHTML=MY_RULES[key].map((v,i)=>`<span class="tag">${v}<span class="tag-remove" onclick="removeMyTag('${key}','${elKey}',${i})">×</span></span>`).join('');
   });
   document.getElementById('tags-my-multiunit').innerHTML=MY_RULES.myMultiUnit.map((r,i)=>`<span class="tag">${r.sku} → ${r.mult}× ${r.mother}<span class="tag-remove" onclick="removeMYMulti(${i})">×</span></span>`).join('');
-  document.getElementById('tags-my-custombundles').innerHTML=MY_RULES.myCustomBundles.map((b,i)=>`<span class="tag" style="flex-direction:column;align-items:flex-start;gap:2px;padding:6px 10px"><span style="display:flex;align-items:center;justify-content:space-between;width:100%;gap:8px"><strong>${b.sku}</strong><span class="tag-remove" onclick="removeCustomBundle(${i})">×</span></span><span style="font-size:11px;opacity:.7">${b.components.join(', ')}</span></span>`).join('');
+  document.getElementById('tags-my-custombundles').innerHTML=MY_RULES.myCustomBundles.map((b,i)=>{const compsStr=b.components.map(c=>typeof c==='object'?(c.qty>1?`${c.sku}×${c.qty}`:c.sku):c).join(', ');return`<span class="tag" style="flex-direction:column;align-items:flex-start;gap:2px;padding:6px 10px"><span style="display:flex;align-items:center;justify-content:space-between;width:100%;gap:8px"><strong>${b.sku}</strong><span class="tag-remove" onclick="removeCustomBundle(${i})">×</span></span><span style="font-size:11px;opacity:.7">${compsStr}</span></span>`;}).join('');
   document.getElementById('tags-my-aliases').innerHTML=MY_RULES.myAliases.map((a,i)=>`<span class="tag">${a.from} = ${a.to}<span class="tag-remove" onclick="removeMYAlias(${i})">×</span></span>`).join('');
 }
 function addTag(k){if(!requireAdmin())return;const inp=document.getElementById('input-'+k),v=inp.value.trim();if(!v)return;const arr={mixed:PH_RULES.mixedSet,standalone:PH_RULES.standalone,excluded:PH_RULES.excluded}[k];if(!arr.includes(v)){arr.push(v);savePHRules();renderRules();toast('Rule saved ✓');}inp.value='';}
@@ -1461,8 +1461,13 @@ function removeMyTag(key,elKey,i){if(!requireAdmin())return;MY_RULES[key].splice
 function addCustomBundle(){
   if(!requireAdmin())return;
   const sku=document.getElementById('input-cb-sku').value.trim();
-  const comps=document.getElementById('input-cb-comps').value.split(',').map(s=>s.trim()).filter(Boolean);
-  if(!sku||!comps.length){toast('Please enter a bundle SKU and at least one component',true);return;}
+  const raw=document.getElementById('input-cb-comps').value.split(',').map(s=>s.trim()).filter(Boolean);
+  if(!sku||!raw.length){toast('Please enter a bundle SKU and at least one component',true);return;}
+  // Parse SKU×QTY format — e.g. "PN-SB-CGB-15×2" or plain "PN-SB-CGB-15" (defaults to qty 1)
+  const comps=raw.map(s=>{
+    const m=s.match(/^(.+?)[×x\*](\d+)$/i);
+    return m?{sku:m[1].trim(),qty:+m[2]}:{sku:s,qty:1};
+  });
   if(!MY_RULES.myCustomBundles.find(b=>b.sku===sku)){
     MY_RULES.myCustomBundles.push({sku,components:comps});
     saveMYRules();renderRules();toast('Custom bundle saved ✓');
