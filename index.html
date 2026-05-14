@@ -222,9 +222,15 @@ tr:last-child td{border-bottom:none;}
 .tag-remove{cursor:pointer;color:var(--muted);font-size:15px;line-height:1;transition:color .15s;}
 .tag-remove:hover{color:var(--red);}
 .rule-input-row{display:flex;gap:8px;}
-.rule-input{flex:1;padding:7px 11px;border:1px solid var(--border);border-radius:6px;font-family:var(--font-body);font-size:12px;color:var(--text);background:var(--white);outline:none;transition:border-color .15s;}
+body:not(.admin-unlocked) .rule-input-row,
+body:not(.admin-unlocked) .multi-field-group,
+body:not(.admin-unlocked) .tag-remove{display:none!important;}
+#admin-lock-btn{padding:6px 14px;border-radius:var(--radius-sm);border:1px solid var(--border);background:transparent;color:var(--muted);font-family:var(--font-body);font-size:12px;font-weight:500;cursor:pointer;transition:all .18s;letter-spacing:.04em;}
+#admin-lock-btn.unlocked{background:var(--accent-lt);color:var(--purest-teal);border-color:var(--teal-600);}
+#admin-lock-btn:hover{border-color:var(--teal-600);color:var(--purest-teal);}
+.rule-input{flex:1;padding:7px 11px;border:1px solid var(--border);border-radius:var(--radius-sm);font-family:var(--font-body);font-size:12px;color:var(--text);background:var(--bg-elev);outline:none;transition:border-color .18s;}
 .rule-input:focus{border-color:var(--teal-600);box-shadow:var(--glow-teal);}
-.rule-add-btn{padding:7px 14px;border-radius:6px;background:var(--accent);border:none;color:#fff;font-family:var(--font-body);font-size:12px;font-weight:600;cursor:pointer;transition:background .15s;white-space:nowrap;}
+.rule-add-btn{padding:7px 14px;border-radius:6px;background:var(--purest-teal);border:none;color:var(--seashell);font-family:var(--font-body);font-size:11px;font-weight:600;cursor:pointer;transition:background .22s;white-space:nowrap;letter-spacing:.04em;text-transform:uppercase;}
 .rule-add-btn:hover{background:var(--moss-700);}
 .multi-field-group{display:flex;flex-direction:column;gap:8px;margin-bottom:8px;}
 .multi-row{display:flex;align-items:center;gap:8px;}
@@ -279,7 +285,7 @@ tr:last-child td{border-bottom:none;}
 <body>
 
 <nav>
-  <div class="nav-logo">Purest Nest <span>Sync Check</span> <span style="font-size:10px;opacity:.4;font-weight:400">v4.8</span></div>
+  <div class="nav-logo">Purest Nest <span>Sync Check</span> <span style="font-size:10px;opacity:.4;font-weight:400">v5.0</span></div>
   <div style="display:flex;align-items:center;gap:8px;">
     <button id="dark-toggle" onclick="toggleDark()" style="padding:5px 10px;border-radius:6px;border:1px solid var(--border);background:transparent;cursor:pointer;font-size:14px;" title="Toggle dark mode">🌙</button>
   <div class="nav-tabs">
@@ -548,7 +554,7 @@ tr:last-child td{border-bottom:none;}
       <div class="rule-card">
         <div class="rule-card-title">Shopify — Excluded Risk Levels</div>
         <div class="rule-card-desc">Shopify (MY) orders with these risk levels (column BF) will be excluded from the audit.</div>
-        <div class="tag-list" id="tags-myShopifyRiskExcl"></div>
+        <div class="tag-list" id="tags-my-risk-excl"></div>
         <div class="rule-input-row">
           <input class="rule-input" id="input-my-risk-excl" placeholder="e.g. High" onkeydown="if(event.key==='Enter')addMyTag('myShopifyRiskExcl','my-risk-excl')"/>
           <button class="rule-add-btn" onclick="addMyTag('myShopifyRiskExcl','my-risk-excl')">Add</button>
