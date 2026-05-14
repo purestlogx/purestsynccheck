@@ -279,7 +279,7 @@ tr:last-child td{border-bottom:none;}
 <body>
 
 <nav>
-  <div class="nav-logo">Purest Nest <span>Sync Check</span> <span style="font-size:10px;opacity:.4;font-weight:400">v4.7</span></div>
+  <div class="nav-logo">Purest Nest <span>Sync Check</span> <span style="font-size:10px;opacity:.4;font-weight:400">v4.8</span></div>
   <div style="display:flex;align-items:center;gap:8px;">
     <button id="dark-toggle" onclick="toggleDark()" style="padding:5px 10px;border-radius:6px;border:1px solid var(--border);background:transparent;cursor:pointer;font-size:14px;" title="Toggle dark mode">🌙</button>
   <div class="nav-tabs">
@@ -1551,13 +1551,16 @@ function renderBundleMap(){
 function renderRules(){
   // PH
   ['mixed','standalone','excluded','shopifyTagExcl','shopifyRiskExcl'].forEach(k=>{
-    const arr={mixed:PH_RULES.mixedSet,standalone:PH_RULES.standalone,excluded:PH_RULES.excluded,shopifyTagExcl:PH_RULES.shopifyTagExcl||[],shopifyRiskExcl:PH_RULES.shopifyRiskExcl||[]}[k];
-    document.getElementById('tags-'+k).innerHTML=arr.map((v,i)=>`<span class="tag">${v}<span class="tag-remove" onclick="removeTag('${k}',${i})">×</span></span>`).join('');
+    const el=document.getElementById('tags-'+k);if(!el)return;
+    const arr={mixed:PH_RULES.mixedSet,standalone:PH_RULES.standalone,excluded:PH_RULES.excluded,shopifyTagExcl:PH_RULES.shopifyTagExcl||[],shopifyRiskExcl:PH_RULES.shopifyRiskExcl||[]}[k]||[];
+    el.innerHTML=arr.map((v,i)=>`<span class="tag">${v}<span class="tag-remove" onclick="removeTag('${k}',${i})">×</span></span>`).join('');
   });
   document.getElementById('tags-multiunit').innerHTML=PH_RULES.multiUnit.map((r,i)=>`<span class="tag">${r.sku} → ${r.mult}× ${r.mother}<span class="tag-remove" onclick="removeMulti(${i})">×</span></span>`).join('');
   // MY
   [['shopeeExcl','shopee-excl'],['lazadaExcl','lazada-excl'],['tiktokExcl','tiktok-excl'],['myShopifyExcl','my-shopify-excl'],['myShopifyTagExcl','my-tag-excl'],['myShopifyRiskExcl','my-risk-excl'],['myMixedSet','my-mixed'],['myStandalone','my-standalone']].forEach(([key,elKey])=>{
-    document.getElementById('tags-'+elKey).innerHTML=MY_RULES[key].map((v,i)=>`<span class="tag">${v}<span class="tag-remove" onclick="removeMyTag('${key}','${elKey}',${i})">×</span></span>`).join('');
+    const el=document.getElementById('tags-'+elKey);if(!el)return;
+    const arr=MY_RULES[key]||[];
+    el.innerHTML=arr.map((v,i)=>`<span class="tag">${v}<span class="tag-remove" onclick="removeMyTag('${key}','${elKey}',${i})">×</span></span>`).join('');
   });
   document.getElementById('tags-my-multiunit').innerHTML=MY_RULES.myMultiUnit.map((r,i)=>`<span class="tag">${r.sku} → ${r.mult}× ${r.mother}<span class="tag-remove" onclick="removeMYMulti(${i})">×</span></span>`).join('');
   document.getElementById('tags-my-custombundles').innerHTML=MY_RULES.myCustomBundles.map((b,i)=>{const compsStr=b.components.map(c=>typeof c==='object'?(c.qty>1?`${c.sku}×${c.qty}`:c.sku):c).join(', ');return`<span class="tag" style="flex-direction:column;align-items:flex-start;gap:2px;padding:6px 10px"><span style="display:flex;align-items:center;justify-content:space-between;width:100%;gap:8px"><strong>${b.sku}</strong><span class="tag-remove" onclick="removeCustomBundle(${i})">×</span></span><span style="font-size:11px;opacity:.7">${compsStr}</span></span>`;}).join('');
