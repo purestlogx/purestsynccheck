@@ -279,7 +279,7 @@ tr:last-child td{border-bottom:none;}
 <body>
 
 <nav>
-  <div class="nav-logo">Purest Nest <span>Sync Check</span> <span style="font-size:10px;opacity:.4;font-weight:400">v3.9</span></div>
+  <div class="nav-logo">Purest Nest <span>Sync Check</span> <span style="font-size:10px;opacity:.4;font-weight:400">v4.7</span></div>
   <div style="display:flex;align-items:center;gap:8px;">
     <button id="dark-toggle" onclick="toggleDark()" style="padding:5px 10px;border-radius:6px;border:1px solid var(--border);background:transparent;cursor:pointer;font-size:14px;" title="Toggle dark mode">🌙</button>
   <div class="nav-tabs">
@@ -465,6 +465,24 @@ tr:last-child td{border-bottom:none;}
         </div>
       </div>
       <div class="rule-card">
+        <div class="rule-card-title">Shopify — Excluded Order Tags</div>
+        <div class="rule-card-desc">Shopify orders containing any of these tags (column BE) will be excluded from the audit.</div>
+        <div class="tag-list" id="tags-shopifyTagExcl"></div>
+        <div class="rule-input-row">
+          <input class="rule-input" id="input-shopifyTagExcl" placeholder="e.g. KOL Sample" onkeydown="if(event.key==='Enter')addTag('shopifyTagExcl')"/>
+          <button class="rule-add-btn" onclick="addTag('shopifyTagExcl')">Add</button>
+        </div>
+      </div>
+      <div class="rule-card">
+        <div class="rule-card-title">Shopify — Excluded Risk Levels</div>
+        <div class="rule-card-desc">Shopify orders with these risk levels (column BF) will be excluded from the audit.</div>
+        <div class="tag-list" id="tags-shopifyRiskExcl"></div>
+        <div class="rule-input-row">
+          <input class="rule-input" id="input-shopifyRiskExcl" placeholder="e.g. High" onkeydown="if(event.key==='Enter')addTag('shopifyRiskExcl')"/>
+          <button class="rule-add-btn" onclick="addTag('shopifyRiskExcl')">Add</button>
+        </div>
+      </div>
+      <div class="rule-card">
         <div class="rule-card-title">Custom Multi-Unit Overrides</div>
         <div class="rule-card-desc">For SKUs that don't follow the auto-detected suffix pattern.</div>
         <div class="tag-list" id="tags-multiunit"></div>
@@ -516,6 +534,24 @@ tr:last-child td{border-bottom:none;}
         <div class="rule-input-row">
           <input class="rule-input" id="input-my-shopify-excl" placeholder="e.g. refunded" onkeydown="if(event.key==='Enter')addMyTag('myShopifyExcl','my-shopify-excl')"/>
           <button class="rule-add-btn" onclick="addMyTag('myShopifyExcl','my-shopify-excl')">Add</button>
+        </div>
+      </div>
+      <div class="rule-card">
+        <div class="rule-card-title">Shopify — Excluded Order Tags</div>
+        <div class="rule-card-desc">Shopify (MY) orders containing any of these tags (column BE) will be excluded from the audit.</div>
+        <div class="tag-list" id="tags-my-tag-excl"></div>
+        <div class="rule-input-row">
+          <input class="rule-input" id="input-my-tag-excl" placeholder="e.g. KOL Sample" onkeydown="if(event.key==='Enter')addMyTag('myShopifyTagExcl','my-tag-excl')"/>
+          <button class="rule-add-btn" onclick="addMyTag('myShopifyTagExcl','my-tag-excl')">Add</button>
+        </div>
+      </div>
+      <div class="rule-card">
+        <div class="rule-card-title">Shopify — Excluded Risk Levels</div>
+        <div class="rule-card-desc">Shopify (MY) orders with these risk levels (column BF) will be excluded from the audit.</div>
+        <div class="tag-list" id="tags-myShopifyRiskExcl"></div>
+        <div class="rule-input-row">
+          <input class="rule-input" id="input-my-risk-excl" placeholder="e.g. High" onkeydown="if(event.key==='Enter')addMyTag('myShopifyRiskExcl','my-risk-excl')"/>
+          <button class="rule-add-btn" onclick="addMyTag('myShopifyRiskExcl','my-risk-excl')">Add</button>
         </div>
       </div>
       <div class="rule-card">
@@ -635,8 +671,8 @@ function toggleAdmin(){
 function requireAdmin(){if(!adminUnlocked){toast('Admin access required',true);return false;}return true;}
 
 // ── Default rules ─────────────────────────────────────────────────────────
-const DEFAULT_PH={mixedSet:['PN-BUNDLE-CGB610+CGCY610+CGSS610'],standalone:['PN-ES-PEH-2','PN-SB-CGCY6-5'],excluded:['refunded'],multiUnit:[{sku:'PN-SB-SOSE-90',mother:'PN-SB-SOSE-30',mult:3}]};
-const DEFAULT_MY={shopeeExcl:['Cancelled','Unpaid'],lazadaExcl:['canceled'],tiktokExcl:['Canceled'],myShopifyExcl:['refunded'],myMixedSet:['PN-BU-SB-CGB10xCGCY10xCGSS10'],myStandalone:['PN-ES-CWPIC-15','PN-ES-PEH-2'],myMultiUnit:[],myAliases:[{from:'GKSB',to:'GKSBH'},{from:'MCP',to:'MCPH'}],myCustomBundles:[{sku:'PNSG-CGB15xSOSE15',components:['PN-SB-CGB-15','PN-SB-SOSE-15']},{sku:'PNSG-CGB1xSOSE1',components:['PN-SB-CGB6-30','PN-SB-SOSE-30']},{sku:'PN-BU-CGB1XPHV1',components:['PN-SB-CGB6-30','PN-SB-PHV-30']}]};
+const DEFAULT_PH={mixedSet:['PN-BUNDLE-CGB610+CGCY610+CGSS610'],standalone:['PN-ES-PEH-2','PN-SB-CGCY6-5'],excluded:['refunded'],shopifyTagExcl:[],shopifyRiskExcl:['High','Medium'],multiUnit:[{sku:'PN-SB-SOSE-90',mother:'PN-SB-SOSE-30',mult:3}]};
+const DEFAULT_MY={shopeeExcl:['Cancelled','Unpaid'],lazadaExcl:['canceled'],tiktokExcl:['Canceled'],myShopifyExcl:['refunded'],myShopifyTagExcl:[],myShopifyRiskExcl:['High','Medium'],myMixedSet:['PN-BU-SB-CGB10xCGCY10xCGSS10'],myStandalone:['PN-ES-CWPIC-15','PN-ES-PEH-2'],myMultiUnit:[],myAliases:[{from:'GKSB',to:'GKSBH'},{from:'MCP',to:'MCPH'}],myCustomBundles:[{sku:'PNSG-CGB15xSOSE15',components:['PN-SB-CGB-15','PN-SB-SOSE-15']},{sku:'PNSG-CGB1xSOSE1',components:['PN-SB-CGB6-30','PN-SB-SOSE-30']},{sku:'PN-BU-CGB1XPHV1',components:['PN-SB-CGB6-30','PN-SB-PHV-30']}]};
 
 let PH_RULES=JSON.parse(JSON.stringify(DEFAULT_PH));
 let MY_RULES=JSON.parse(JSON.stringify(DEFAULT_MY));
@@ -786,13 +822,39 @@ function readXLSX(file,cb,preserveStrCols){
 }
 function readCSV(file,cb){const r=new FileReader();r.onload=e=>cb(parseCSV(e.target.result));r.readAsText(file);}
 function parseCSV(text){
-  const lines=text.split('\n'),h=parseCSVLine(lines[0]);
-  return lines.slice(1).filter(l=>l.trim()).map(l=>{const v=parseCSVLine(l),o={};h.forEach((k,i)=>o[k.trim()]=(v[i]||'').trim());return o;});
-}
-function parseCSVLine(line){
-  const r=[];let c='',q=false;
-  for(const ch of line){if(ch==='"')q=!q;else if(ch===','&&!q){r.push(c);c='';}else c+=ch;}
-  r.push(c);return r;
+  // Proper RFC-4180 parser — handles multi-line quoted fields correctly
+  const rows=[];let fields=[],field='',inQ=false,i=0;
+  // Normalise line endings
+  text=text.replace(/\r\n/g,'\n').replace(/\r/g,'\n');
+  while(i<text.length){
+    const ch=text[i];
+    if(inQ){
+      if(ch==='"'){
+        // Peek: escaped quote "" or end of quoted field
+        if(text[i+1]==='"'){field+='"';i+=2;continue;}
+        else{inQ=false;}
+      } else {
+        field+=ch;
+      }
+    } else {
+      if(ch==='"'){inQ=true;}
+      else if(ch===','){fields.push(field.trim());field='';}
+      else if(ch==='\n'){
+        fields.push(field.trim());field='';
+        if(fields.some(f=>f!==''))rows.push(fields);
+        fields=[];
+      } else {
+        field+=ch;
+      }
+    }
+    i++;
+  }
+  // Flush last field/row
+  fields.push(field.trim());
+  if(fields.some(f=>f!==''))rows.push(fields);
+  if(rows.length<2)return[];
+  const h=rows[0];
+  return rows.slice(1).map(v=>{const o={};h.forEach((k,i)=>o[k.trim()]=(v[i]||'').trim());return o;});
 }
 
 function handleFilePH(type,input){
@@ -881,9 +943,34 @@ function findHdr(sku,insSet){if(insSet.has('BUNDLE -'+sku))return'BUNDLE -'+sku;
 function comparePH(){
   const excl=new Set(PH_RULES.excluded.map(s=>s.toLowerCase()));
   let lastStatus='';
-  const shopRows=state.ph.shopifyData.map(r=>{const fs=(r['Financial Status']||'').toLowerCase();if(fs)lastStatus=fs;return{name:String(r['Name']||'').trim(),status:lastStatus,sku:String(r['Lineitem sku']||'').trim(),qty:+r['Lineitem quantity']||0};}).filter(r=>r.name&&r.sku);
-  const refunded=new Set(shopRows.filter(r=>excl.has(r.status)).map(r=>r.name));
-  const active=shopRows.filter(r=>!refunded.has(r.name));
+  const phTagExcl=(PH_RULES.shopifyTagExcl||[]).map(t=>t.toLowerCase());
+  const phRiskExcl=new Set((PH_RULES.shopifyRiskExcl||[]).map(r=>r.toLowerCase()));
+  // Pre-scan: priority — 2nd Financial Status → 3rd Risk Level → 4th Tags
+  const phTagExcludedMap=new Map(); // orderId -> matched tag label
+  const phRiskExcludedMap=new Map(); // orderId -> risk level
+  let lastStatusScan='';
+  state.ph.shopifyData.forEach(r=>{
+    const name=String(r['Name']||'').trim();if(!name)return;
+    const fs=(r['Financial Status']||'').toLowerCase();if(fs)lastStatusScan=fs;
+    if(excl.has(lastStatusScan))return; // financial status wins — handled in main pass
+    if(!phRiskExcludedMap.has(name)){
+      const risk=(r['Risk Level']||'').trim();
+      if(risk&&phRiskExcl.has(risk.toLowerCase())){phRiskExcludedMap.set(name,risk);return;}
+    }
+    if(!phTagExcludedMap.has(name)&&!phRiskExcludedMap.has(name)){
+      const rowTags=(r['Tags']||'').split(',').map(t=>t.trim().toLowerCase());
+      for(const t of phTagExcl){if(rowTags.includes(t)){phTagExcludedMap.set(name,t);break;}}
+    }
+  });
+  const shopRows=state.ph.shopifyData.map(r=>{const fs=(r['Financial Status']||'').toLowerCase();if(fs)lastStatus=fs;const tags=(r['Tags']||'').split(',').map(t=>t.trim().toLowerCase());return{name:String(r['Name']||'').trim(),status:lastStatus,sku:String(r['Lineitem sku']||'').trim(),qty:+r['Lineitem quantity']||0,tags};}).filter(r=>r.name&&r.sku);
+  const riskExcludedPH=new Set(phRiskExcludedMap.keys());
+  const tagExcludedPH=new Set(phTagExcludedMap.keys());
+  // Financial status wins over risk/tag — remove overlap
+  riskExcludedPH.forEach(n=>{if(shopRows.some(r=>r.name===n&&excl.has(r.status)))riskExcludedPH.delete(n);});
+  tagExcludedPH.forEach(n=>{if(shopRows.some(r=>r.name===n&&excl.has(r.status)))tagExcludedPH.delete(n);});
+  const refunded=new Set(shopRows.filter(r=>excl.has(r.status)&&!riskExcludedPH.has(r.name)&&!tagExcludedPH.has(r.name)).map(r=>r.name));
+  const allExcluded=new Set([...refunded,...riskExcludedPH,...tagExcludedPH]);
+  const active=shopRows.filter(r=>!allExcluded.has(r.name));
   const shoMap={};
   for(const r of active){if(!shoMap[r.name])shoMap[r.name]={};shoMap[r.name][r.sku]=(shoMap[r.name][r.sku]||0)+r.qty;}
   const tMap={};
@@ -892,8 +979,8 @@ function comparePH(){
   for(const r of state.ph.inspireData){const keys=Object.keys(r);const nm=String(r[keys.find(k=>/marketplace.*order|order.*number|name/i.test(k))]||'').trim();const sk=String(r[keys.find(k=>/sku/i.test(k))]||'').trim();const qt=+r[keys.find(k=>/quantity|qty/i.test(k))]||0;if(nm&&sk){if(!insMap[nm])insMap[nm]={};insMap[nm][sk]=(insMap[nm][sk]||0)+qt;}}
   const shoNames=new Set(Object.keys(shoMap)),insNames=new Set(Object.keys(insMap));
   const common=[...shoNames].filter(n=>insNames.has(n));
-  const onlySho=[...shoNames].filter(n=>!insNames.has(n)).sort();
-  const onlyIns=[...insNames].filter(n=>!shoNames.has(n)&&!refunded.has(n)).sort();
+  const onlySho=[...shoNames].filter(n=>!insNames.has(n)&&!tagExcludedPH.has(n)&&!riskExcludedPH.has(n)).sort();
+  const onlyIns=[...insNames].filter(n=>!shoNames.has(n)&&!allExcluded.has(n)).sort();
   const missing=[],extra=[],match=[],mismatch=[];
   function rec(name,shopSku,insSku,sq,iq){const row={order:name,shopifySku:shopSku,inspireSku:insSku,sq,iq};if(sq===iq)match.push(row);else mismatch.push({...row,diff:sq-iq,remark:iq>sq?`Inspire has ${iq-sq} more`:`Inspire has ${sq-iq} less`});}
   for(const name of common.sort()){
@@ -907,7 +994,7 @@ function comparePH(){
     for(const sku of[...insSet].filter(s=>!explained.has(s))){if(sku.startsWith('BUNDLE -'))continue;extra.push({order:name,inspireSku:sku,iq:insD[sku],note:'In Inspire, not ordered in Shopify'});}
   }
   const onlyShoRows=[];for(const n of onlySho)for(const[sku,qty]of Object.entries(shoMap[n]))onlyShoRows.push({order:n,sku,qty});
-  return{type:'ph',refunded:[...refunded].sort(),shoTotal:shoNames.size+refunded.size,shoActive:shoNames.size,insTotal:insNames.size,common:common.length,onlySho,onlyIns,onlyShoRows,missing,extra,match,mismatch};
+  return{type:'ph',refunded:[...refunded].sort(),tagExcluded:[...tagExcludedPH].sort(),tagExcludedLabels:Object.fromEntries(phTagExcludedMap),riskExcluded:[...riskExcludedPH].sort(),riskExcludedLabels:Object.fromEntries(phRiskExcludedMap),shoTotal:shoNames.size+allExcluded.size,shoActive:shoNames.size,insTotal:insNames.size,common:common.length,onlySho,onlyIns,onlyShoRows,missing,extra,match,mismatch};
 }
 
 // ══ MY COMPARISON ════════════════════════════════════════════════
@@ -949,14 +1036,32 @@ function compareMY(){
   const shopifyMYData=[...(state.my.shopify1Data||[]),...(state.my.shopify2Data||[]),...(state.my.shopify3Data||[])];
   if(shopifyMYData.length){
     const excl=new Set(MY_RULES.myShopifyExcl.map(s=>s.toLowerCase()));
+    const myTagExclList=(MY_RULES.myShopifyTagExcl||[]).map(t=>t.toLowerCase());
+    const myRiskExcl=new Set((MY_RULES.myShopifyRiskExcl||[]).map(r=>r.toLowerCase()));
+    // Pre-scan: priority — 2nd Financial Status → 3rd Risk Level → 4th Tags
+    let lastStatusScan='';
+    shopifyMYData.forEach(r=>{
+      const name=String(r['Name']||'').trim();if(!name)return;
+      const fs=(r['Financial Status']||'').toLowerCase();if(fs)lastStatusScan=fs;
+      if(excluded[name])return; // already set at higher priority
+      // 2nd: financial status
+      if(excl.has(lastStatusScan)){excluded[name]=true;return;}
+      // 3rd: risk level
+      const risk=(r['Risk Level']||'').trim();
+      if(risk&&myRiskExcl.has(risk.toLowerCase())){excluded[name]='risk:'+risk;return;}
+      // 4th: tags
+      const rowTags=(r['Tags']||'').split(',').map(t=>t.trim().toLowerCase());
+      for(const t of myTagExclList){if(rowTags.includes(t)){excluded[name]='tag:'+t;break;}}
+    });
     let lastStatus='';
     shopifyMYData.forEach(r=>{
       const fs=(r['Financial Status']||'').toLowerCase();if(fs)lastStatus=fs;
       const name=String(r['Name']||'').trim();
-      if(excl.has(lastStatus)){excluded[name]=true;return;}
       if(excluded[name])return;
       addOrder(name,String(r['Lineitem sku']||'').trim(),+r['Lineitem quantity']||0,'Shopify');
     });
+    // Safety net: remove risk/tag excluded from platMap
+    Object.keys(excluded).forEach(k=>{const v=String(excluded[k]);if(v.startsWith('tag:')||v.startsWith('risk:'))delete platMap[k];});
   }
 
   // Shopee
@@ -1167,7 +1272,7 @@ function compareMY(){
   const onlyNJVRows=[];
   for(const n of onlyNJV){const skus=Object.entries(njvMap[n]).map(([s,q])=>`${s} (×${q})`).join(', ');onlyNJVRows.push({order:n,skus,totalSkus:Object.keys(njvMap[n]).length});}
 
-  return{type:'my',excluded,platSource,njvStatus,excludedCount:Object.keys(excluded).length,platTotal:platNames.size+Object.keys(excluded).length,platActive:platNames.size,njvTotal:njvNames.size,common:common.length,onlyPlat,onlyNJV,onlyPlatRows,onlyNJVRows,missing,extra,match,mismatch};
+  return{type:'my',excluded,platSource,njvStatus,excludedCount:Object.keys(excluded).length,tagExcludedCount:Object.values(excluded).filter(v=>String(v).startsWith('tag:')).length,riskExcludedCount:Object.values(excluded).filter(v=>String(v).startsWith('risk:')).length,platTotal:platNames.size+Object.keys(excluded).length,platActive:platNames.size,njvTotal:njvNames.size,common:common.length,onlyPlat,onlyNJV,onlyPlatRows,onlyNJVRows,missing,extra,match,mismatch};
 }
 
 // ══ DASHBOARD ═════════════════════════════════════════════════════
@@ -1175,7 +1280,7 @@ let curView=null,curPage=1,curSearch='',curMarket=null;
 const PAGE=50;
 
 function makeTile(d){
-  const isIssueTile=['red','amber'].includes(d.cls)&&d.key!=='refunded'&&d.key!=='excl';
+  const isIssueTile=['red','amber'].includes(d.cls)&&d.key!=='refunded'&&d.key!=='excl'&&d.key!=='tagExcluded'&&d.key!=='tagExcludedMY'&&d.key!=='riskExcluded'&&d.key!=='riskExcludedMY';
   const t=document.createElement('div');
   t.className=`tile ${d.cls}${isIssueTile&&d.val===0?' zero':''}`;
   t.dataset.key=d.key;
@@ -1255,13 +1360,13 @@ function renderDashboard(r,market){
     el.appendChild(makeGroup('good','Matched','SKU and quantity correctly synced on both sides',[makeTile({label:'QTY Match',val:r.match.length,cls:'green',key:'match'})]));
     el.appendChild(makeGroup('sku','SKU Level','Same order on both sides, but specific SKUs or quantities differ',[makeTile({label:'QTY Mismatch',val:r.mismatch.length,cls:'red',key:'mismatch'}),makeTile({label:'Missing from Inspire',val:r.missing.length,cls:'red',key:'missing'}),makeTile({label:'Extra in Inspire',val:r.extra.length,cls:'amber',key:'extra'})]));
     el.appendChild(makeGroup('order','Order Level','Entire order missing from one side completely',[makeTile({label:'Only in Shopify',val:r.onlySho.length,cls:'blue',key:'onlySho'}),makeTile({label:'Only in Inspire',val:r.onlyIns.length,cls:'purple',key:'onlyIns'})]));
-    el.appendChild(makeGroup('excl','Excluded','Orders not included in this audit',[makeTile({label:'Refunded (excl.)',val:r.refunded.length,cls:'amber',key:'refunded'})]));
+    el.appendChild(makeGroup('excl','Excluded','Orders not included in this audit',[makeTile({label:'Refunded (excl.)',val:r.refunded.length,cls:'amber',key:'refunded'}),makeTile({label:'Tag Excluded (excl.)',val:(r.tagExcluded||[]).length,cls:'amber',key:'tagExcluded'}),makeTile({label:'Risk Excluded (excl.)',val:(r.riskExcluded||[]).length,cls:'amber',key:'riskExcluded'})]));
     showView('mismatch');
   } else {
     el.appendChild(makeGroup('good','Matched','SKU and quantity correctly synced on both sides',[makeTile({label:'QTY Match',val:r.match.length,cls:'green',key:'match'})]));
     el.appendChild(makeGroup('sku','SKU Level','Same order on both sides, but specific SKUs or quantities differ',[makeTile({label:'QTY Mismatch',val:r.mismatch.length,cls:'red',key:'mismatch'}),makeTile({label:'Missing from NJV',val:r.missing.length,cls:'red',key:'missing'}),makeTile({label:'Extra in NJV',val:r.extra.length,cls:'amber',key:'extra'})]));
     el.appendChild(makeGroup('order','Order Level','Entire order missing from one side completely',[makeTile({label:'Only in Platforms',val:r.onlyPlat.length,cls:'blue',key:'onlyPlat'}),makeTile({label:'Only in NJV',val:r.onlyNJV.length,cls:'purple',key:'onlyNJV'})]));
-    el.appendChild(makeGroup('excl','Excluded','Orders not included in this audit',[makeTile({label:'Cancelled (excl.)',val:r.excludedCount,cls:'amber',key:'excl'})]));
+    el.appendChild(makeGroup('excl','Excluded','Orders not included in this audit',[makeTile({label:'Cancelled (excl.)',val:r.excludedCount-(r.tagExcludedCount||0)-(r.riskExcludedCount||0),cls:'amber',key:'excl'}),makeTile({label:'Tag Excluded (excl.)',val:r.tagExcludedCount||0,cls:'amber',key:'tagExcludedMY'}),makeTile({label:'Risk Excluded (excl.)',val:r.riskExcludedCount||0,cls:'amber',key:'riskExcludedMY'})]));
     showView('mismatch');
   }
 }
@@ -1291,6 +1396,8 @@ function renderTable(){
     onlySho: {title:'📋 Only in Shopify',      cols:['Order','SKUs','# SKUs'],rows:r.onlyShoRows.map(d=>[d.order,d.skus,d.totalSkus])},
     onlyIns: {title:'📋 Only in Inspire',      cols:['Order','Note'],rows:r.onlyIns.map(n=>[n,'No matching platform order'])},
     refunded:{title:'🚫 Refunded (Excluded)',  cols:['Order','Note'],rows:r.refunded.map(n=>[n,'Excluded — refunded'])},
+    tagExcluded:{title:'🏷️ Tag Excluded',cols:['Order','Matched Tag','Note'],rows:(r.tagExcluded||[]).map(n=>[n,(r.tagExcludedLabels&&r.tagExcludedLabels[n])||'','Excluded — matched order tag'])},
+    riskExcluded:{title:'⚠️ Risk Excluded',cols:['Order','Risk Level','Note'],rows:(r.riskExcluded||[]).map(n=>[n,(r.riskExcludedLabels&&r.riskExcludedLabels[n])||'','Excluded — risk level'])},
   }:{
     match:   {title:'✅ QTY Match',         cols:['Platform','Order','NJV Status','SKU','QTY'],rows:r.match.map(d=>[d.platform,d.order,(r.njvStatus&&r.njvStatus[d.order])||'',d.platformSku,d.platformQty])},
     mismatch:{title:'❌ QTY Mismatch',       cols:['Platform','Order','NJV Status','SKU','Platform QTY','NJV QTY','Diff','Remark'],rows:r.mismatch.map(d=>[d.platform,d.order,(r.njvStatus&&r.njvStatus[d.order])||'',d.platformSku,d.platformQty,d.njvQty,d.diff,d.remark])},
@@ -1298,7 +1405,9 @@ function renderTable(){
     extra:   {title:'🟡 Extra in NJV',      cols:['Platform','Order','NJV Status','NJV SKU','NJV QTY','Note'],rows:r.extra.map(d=>[d.platform,d.order,(r.njvStatus&&r.njvStatus[d.order])||'',d.njvSku,d.njvQty,d.note])},
     onlyPlat:{title:'📋 Only in Platforms', cols:['Platform','Order','SKUs','# SKUs'],rows:r.onlyPlatRows.map(d=>[(r.platSource&&r.platSource[d.order])||'',d.order,d.skus,d.totalSkus])},
     onlyNJV: {title:'📋 Only in NJV',       cols:['Order','SKUs','# SKUs'],rows:r.onlyNJVRows.map(d=>[d.order,d.skus,d.totalSkus])},
-    excl:    {title:'🚫 Cancelled (Excluded)',cols:['Order','Note'],rows:Object.keys(r.excluded||{}).sort().map(n=>[n,'Cancelled — excluded from audit'])},
+    excl:    {title:'🚫 Cancelled (Excluded)',cols:['Order','Note'],rows:Object.keys(r.excluded||{}).filter(n=>!String(r.excluded[n]).startsWith('tag:')&&!String(r.excluded[n]).startsWith('risk:')).sort().map(n=>[n,'Cancelled — excluded from audit'])},
+    tagExcludedMY:{title:'🏷️ Tag Excluded',cols:['Order','Matched Tag','Note'],rows:Object.keys(r.excluded||{}).filter(n=>String(r.excluded[n]).startsWith('tag:')).sort().map(n=>[n,(r.excluded[n]||'').replace('tag:',''),'Excluded — matched order tag'])},
+    riskExcludedMY:{title:'⚠️ Risk Excluded',cols:['Order','Risk Level','Note'],rows:Object.keys(r.excluded||{}).filter(n=>String(r.excluded[n]).startsWith('risk:')).sort().map(n=>[n,(r.excluded[n]||'').replace('risk:',''),'Excluded — risk level'])},
   };
   const v=V[curView];if(!v){document.getElementById('detail-label').textContent='—';document.getElementById('detail-table').innerHTML=`<div class="empty-state">No data</div>`;return;}
   document.getElementById('detail-label').textContent=v.title;
@@ -1379,6 +1488,8 @@ function exportFullReport(){
     {n:'Only in Shopify',d:[['Order','SKU','QTY'],...r.onlyShoRows.map(d=>[d.order,d.sku,d.qty])]},
     {n:'Only in Inspire',d:[['Order','Note'],...r.onlyIns.map(n=>[n,'No matching order'])]},
     {n:'Refunded',d:[['Order','Note'],...r.refunded.map(n=>[n,'Excluded'])]},
+    {n:'Tag Excluded',d:[['Order','Note'],...(r.tagExcluded||[]).map(n=>[n,'Tag excluded'])]},
+    {n:'Risk Excluded',d:[['Order','Risk Level'],...(r.riskExcluded||[]).map(n=>[n,(r.riskExcludedLabels&&r.riskExcludedLabels[n])||''])]},
   ]:[
     {n:'Summary',d:[['Metric','Value'],['Platform Total',r.platTotal],['Cancelled Excluded',r.excludedCount],['Active Platform Orders',r.platActive],['NJV Total Orders',r.njvTotal],['Orders in Both',r.common],['Missing from NJV',r.missing.length],['Extra in NJV',r.extra.length],['QTY Mismatch',r.mismatch.length],['QTY Match',r.match.length],['Only in Platforms',r.onlyPlat.length],['Only in NJV',r.onlyNJV.length]]},
     {n:'Missing from NJV',d:[['Order','Platform SKU','Platform QTY','Issue'],...r.missing.map(d=>[d.order,d.platformSku,d.platformQty,d.issue])]},
@@ -1439,21 +1550,21 @@ function renderBundleMap(){
 
 function renderRules(){
   // PH
-  ['mixed','standalone','excluded'].forEach(k=>{
-    const arr={mixed:PH_RULES.mixedSet,standalone:PH_RULES.standalone,excluded:PH_RULES.excluded}[k];
+  ['mixed','standalone','excluded','shopifyTagExcl','shopifyRiskExcl'].forEach(k=>{
+    const arr={mixed:PH_RULES.mixedSet,standalone:PH_RULES.standalone,excluded:PH_RULES.excluded,shopifyTagExcl:PH_RULES.shopifyTagExcl||[],shopifyRiskExcl:PH_RULES.shopifyRiskExcl||[]}[k];
     document.getElementById('tags-'+k).innerHTML=arr.map((v,i)=>`<span class="tag">${v}<span class="tag-remove" onclick="removeTag('${k}',${i})">×</span></span>`).join('');
   });
   document.getElementById('tags-multiunit').innerHTML=PH_RULES.multiUnit.map((r,i)=>`<span class="tag">${r.sku} → ${r.mult}× ${r.mother}<span class="tag-remove" onclick="removeMulti(${i})">×</span></span>`).join('');
   // MY
-  [['shopeeExcl','shopee-excl'],['lazadaExcl','lazada-excl'],['tiktokExcl','tiktok-excl'],['myShopifyExcl','my-shopify-excl'],['myMixedSet','my-mixed'],['myStandalone','my-standalone']].forEach(([key,elKey])=>{
+  [['shopeeExcl','shopee-excl'],['lazadaExcl','lazada-excl'],['tiktokExcl','tiktok-excl'],['myShopifyExcl','my-shopify-excl'],['myShopifyTagExcl','my-tag-excl'],['myShopifyRiskExcl','my-risk-excl'],['myMixedSet','my-mixed'],['myStandalone','my-standalone']].forEach(([key,elKey])=>{
     document.getElementById('tags-'+elKey).innerHTML=MY_RULES[key].map((v,i)=>`<span class="tag">${v}<span class="tag-remove" onclick="removeMyTag('${key}','${elKey}',${i})">×</span></span>`).join('');
   });
   document.getElementById('tags-my-multiunit').innerHTML=MY_RULES.myMultiUnit.map((r,i)=>`<span class="tag">${r.sku} → ${r.mult}× ${r.mother}<span class="tag-remove" onclick="removeMYMulti(${i})">×</span></span>`).join('');
   document.getElementById('tags-my-custombundles').innerHTML=MY_RULES.myCustomBundles.map((b,i)=>{const compsStr=b.components.map(c=>typeof c==='object'?(c.qty>1?`${c.sku}×${c.qty}`:c.sku):c).join(', ');return`<span class="tag" style="flex-direction:column;align-items:flex-start;gap:2px;padding:6px 10px"><span style="display:flex;align-items:center;justify-content:space-between;width:100%;gap:8px"><strong>${b.sku}</strong><span class="tag-remove" onclick="removeCustomBundle(${i})">×</span></span><span style="font-size:11px;opacity:.7">${compsStr}</span></span>`;}).join('');
   document.getElementById('tags-my-aliases').innerHTML=MY_RULES.myAliases.map((a,i)=>`<span class="tag">${a.from} = ${a.to}<span class="tag-remove" onclick="removeMYAlias(${i})">×</span></span>`).join('');
 }
-function addTag(k){if(!requireAdmin())return;const inp=document.getElementById('input-'+k),v=inp.value.trim();if(!v)return;const arr={mixed:PH_RULES.mixedSet,standalone:PH_RULES.standalone,excluded:PH_RULES.excluded}[k];if(!arr.includes(v)){arr.push(v);savePHRules();renderRules();toast('Rule saved ✓');}inp.value='';}
-function removeTag(k,i){if(!requireAdmin())return;({mixed:PH_RULES.mixedSet,standalone:PH_RULES.standalone,excluded:PH_RULES.excluded})[k].splice(i,1);savePHRules();renderRules();}
+function addTag(k){if(!requireAdmin())return;const inp=document.getElementById('input-'+k),v=inp.value.trim();if(!v)return;const arr={mixed:PH_RULES.mixedSet,standalone:PH_RULES.standalone,excluded:PH_RULES.excluded,shopifyTagExcl:PH_RULES.shopifyTagExcl,shopifyRiskExcl:PH_RULES.shopifyRiskExcl}[k];if(!arr.includes(v)){arr.push(v);savePHRules();renderRules();toast('Rule saved ✓');}inp.value='';}
+function removeTag(k,i){if(!requireAdmin())return;({mixed:PH_RULES.mixedSet,standalone:PH_RULES.standalone,excluded:PH_RULES.excluded,shopifyTagExcl:PH_RULES.shopifyTagExcl,shopifyRiskExcl:PH_RULES.shopifyRiskExcl})[k].splice(i,1);savePHRules();renderRules();}
 function addMultiUnit(){if(!requireAdmin())return;const sku=document.getElementById('input-mu-sku').value.trim(),mother=document.getElementById('input-mu-mother').value.trim(),mult=+document.getElementById('input-mu-mult').value;if(!sku||!mother||!mult){toast('Please fill in all fields',true);return;}PH_RULES.multiUnit.push({sku,mother,mult});savePHRules();renderRules();['mu-sku','mu-mother','mu-mult'].forEach(k=>document.getElementById('input-'+k).value='');toast('Rule saved ✓');}
 function removeMulti(i){if(!requireAdmin())return;PH_RULES.multiUnit.splice(i,1);savePHRules();renderRules();}
 function addMyTag(key,elKey){if(!requireAdmin())return;const inp=document.getElementById('input-'+elKey),v=inp.value.trim();if(!v)return;if(!MY_RULES[key].includes(v)){MY_RULES[key].push(v);saveMYRules();renderRules();toast('Rule saved ✓');}inp.value='';}
