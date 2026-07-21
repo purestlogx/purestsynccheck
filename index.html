@@ -294,6 +294,8 @@ body:not(.admin-unlocked) .tag-remove{display:none!important;}
 .login-btn:hover{background:var(--moss-700);}
 .login-btn:disabled{opacity:.6;cursor:not-allowed;}
 .login-error{font-size:12px;color:var(--red);margin-top:12px;min-height:16px;}
+.login-forgot{display:block;margin:14px auto 0;background:none;border:none;color:var(--teal-600);font-family:var(--font-body);font-size:12px;cursor:pointer;text-decoration:underline;}
+.login-forgot:hover{color:var(--purest-teal);}
 #logout-btn{padding:5px 12px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--muted);font-family:var(--font-body);font-size:12px;cursor:pointer;transition:all .18s;letter-spacing:.03em;}
 #logout-btn:hover{border-color:var(--red);color:var(--red);}
 #user-email{font-size:12px;color:var(--muted);margin-right:4px;}
@@ -318,12 +320,13 @@ body:not(.admin-unlocked) .tag-remove{display:none!important;}
       <input type="password" id="login-password" autocomplete="current-password" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()"/>
     </div>
     <button class="login-btn" id="login-btn" onclick="doLogin()">Sign In</button>
+    <button type="button" class="login-forgot" id="login-forgot" onclick="doPasswordReset()">Forgot password?</button>
     <div class="login-error" id="login-error"></div>
   </div>
 </div>
 
 <nav>
-  <div class="nav-logo">Purest Nest <span>Sync Check</span> <span style="font-size:10px;opacity:.4;font-weight:400">v6.3</span></div>
+  <div class="nav-logo">Purest Nest <span>Sync Check</span> <span style="font-size:10px;opacity:.4;font-weight:400">v6.4</span></div>
   <div style="display:flex;align-items:center;gap:8px;">
     <button id="dark-toggle" onclick="toggleDark()" style="padding:5px 10px;border-radius:6px;border:1px solid var(--border);background:transparent;cursor:pointer;font-size:14px;" title="Toggle dark mode">🌙</button>
     <span id="user-email"></span>
@@ -768,7 +771,7 @@ function doLogin(){
   const pw=document.getElementById('login-password').value;
   const errEl=document.getElementById('login-error');
   const btn=document.getElementById('login-btn');
-  errEl.textContent='';
+  errEl.textContent='';errEl.style.color='';
   if(!email||!pw){errEl.textContent='Enter your email and password.';return;}
   if(!auth){errEl.textContent='Authentication service unavailable. Check your connection and reload.';return;}
   btn.disabled=true;btn.textContent='Signing in…';
@@ -781,6 +784,20 @@ function doLogin(){
 }
 function doLogout(){
   if(auth)auth.signOut();
+}
+// ── Self-service password reset (Firebase sends the email; no console access needed) ──
+function doPasswordReset(){
+  const email=document.getElementById('login-email').value.trim();
+  const errEl=document.getElementById('login-error');
+  errEl.style.color='';
+  if(!auth){errEl.textContent='Authentication service unavailable. Check your connection and reload.';return;}
+  if(!email){errEl.textContent='Enter your email above first, then click “Forgot password?”.';return;}
+  auth.sendPasswordResetEmail(email)
+    .then(()=>{errEl.style.color='var(--green)';errEl.textContent='Reset link sent to '+email+'. Check your inbox (and spam).';})
+    .catch(err=>{
+      const map={'auth/invalid-email':'That email address looks invalid.','auth/user-not-found':'No account found for that email — ask an admin to create it first.','auth/too-many-requests':'Too many attempts. Please wait a moment and try again.','auth/network-request-failed':'Network error. Check your connection.'};
+      errEl.textContent=map[err.code]||('Could not send reset email: '+err.message);
+    });
 }
 // ── Inactivity timeout (2h, same as the other LOGX tools) ──
 const INACTIVITY_MS=2*60*60*1000;let _idleT=null;
