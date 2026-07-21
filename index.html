@@ -278,21 +278,62 @@ body:not(.admin-unlocked) .tag-remove{display:none!important;}
   .tiles{gap:8px;}
   .tile{min-width:calc(50% - 4px);flex:1 1 calc(50% - 4px);}
 }
+
+/* ── Login gate ── */
+#login-overlay{position:fixed;inset:0;background:var(--bg);z-index:5000;display:flex;align-items:center;justify-content:center;padding:24px;}
+#login-overlay.hidden{display:none;}
+.login-card{background:var(--bg-elev);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-md);padding:40px 36px;width:100%;max-width:380px;}
+.login-title{font-family:var(--font-serif);font-size:26px;font-weight:400;letter-spacing:-.02em;color:var(--purest-teal);margin-bottom:6px;}
+.login-title span{color:var(--teal-600);font-style:italic;}
+.login-sub{font-size:13px;color:var(--muted);margin-bottom:26px;}
+.login-field{margin-bottom:14px;}
+.login-field label{display:block;font-size:10px;font-weight:600;letter-spacing:var(--tr-eyebrow);text-transform:uppercase;color:var(--subtle);margin-bottom:6px;}
+.login-field input{width:100%;padding:11px 13px;border:1px solid var(--border);border-radius:var(--radius-sm);font-family:var(--font-body);font-size:14px;color:var(--text);background:var(--bg);outline:none;transition:border-color .18s,box-shadow .18s;box-sizing:border-box;}
+.login-field input:focus{border-color:var(--teal-600);box-shadow:var(--glow-teal);}
+.login-btn{width:100%;padding:12px;margin-top:8px;background:var(--purest-teal);color:var(--seashell);border:none;border-radius:var(--radius);font-family:var(--font-body);font-size:11px;font-weight:600;letter-spacing:var(--tr-eyebrow);text-transform:uppercase;cursor:pointer;transition:background .22s;}
+.login-btn:hover{background:var(--moss-700);}
+.login-btn:disabled{opacity:.6;cursor:not-allowed;}
+.login-error{font-size:12px;color:var(--red);margin-top:12px;min-height:16px;}
+#logout-btn{padding:5px 12px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--muted);font-family:var(--font-body);font-size:12px;cursor:pointer;transition:all .18s;letter-spacing:.03em;}
+#logout-btn:hover{border-color:var(--red);color:var(--red);}
+#user-email{font-size:12px;color:var(--muted);margin-right:4px;}
 </style>
 <script src="https://www.gstatic.com/firebasejs/10.11.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.11.0/firebase-auth-compat.js"></script>
 </head>
 <body>
 
+<!-- ══ LOGIN GATE ══ -->
+<div id="login-overlay">
+  <div class="login-card">
+    <div class="login-title">Purest Nest <span>Sync Check</span></div>
+    <div class="login-sub">Sign in with your Purest account to continue.</div>
+    <div class="login-field">
+      <label for="login-email">Email</label>
+      <input type="email" id="login-email" autocomplete="username" placeholder="you@thepurestgroup.com" onkeydown="if(event.key==='Enter')document.getElementById('login-password').focus()"/>
+    </div>
+    <div class="login-field">
+      <label for="login-password">Password</label>
+      <input type="password" id="login-password" autocomplete="current-password" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()"/>
+    </div>
+    <button class="login-btn" id="login-btn" onclick="doLogin()">Sign In</button>
+    <div class="login-error" id="login-error"></div>
+  </div>
+</div>
+
 <nav>
-  <div class="nav-logo">Purest Nest <span>Sync Check</span> <span style="font-size:10px;opacity:.4;font-weight:400">v5.0</span></div>
+  <div class="nav-logo">Purest Nest <span>Sync Check</span> <span style="font-size:10px;opacity:.4;font-weight:400">v6.3</span></div>
   <div style="display:flex;align-items:center;gap:8px;">
     <button id="dark-toggle" onclick="toggleDark()" style="padding:5px 10px;border-radius:6px;border:1px solid var(--border);background:transparent;cursor:pointer;font-size:14px;" title="Toggle dark mode">🌙</button>
+    <span id="user-email"></span>
+    <button id="logout-btn" onclick="doLogout()">Sign out</button>
   <div class="nav-tabs">
     <button class="nav-tab active" onclick="showPage('upload',this)">Upload</button>
     <button class="nav-tab" id="tab-dashboard" onclick="showPage('dashboard',this)">Dashboard</button>
     <button class="nav-tab" onclick="showPage('rules',this)">SKU Rules</button>
     <button class="nav-tab" onclick="showPage('bundles',this)">Bundle Map</button>
+    <button class="nav-tab" id="tab-users" onclick="showPage('users',this)" style="display:none">Users</button>
   </div>
   </div>
 </nav>
@@ -300,7 +341,7 @@ body:not(.admin-unlocked) .tag-remove{display:none!important;}
 <!-- Market switcher -->
 <div class="market-bar">
   <span class="market-label">Market</span>
-  <button class="market-btn active" id="mkt-ph" onclick="switchMarket('ph',this)">🇵🇭 PH — Inspire</button>
+  <button class="market-btn active" id="mkt-ph" onclick="switchMarket('ph',this)">🇵🇭 PH — Fusion</button>
   <button class="market-btn" id="mkt-my" onclick="switchMarket('my',this)">🇲🇾 MY — NJV</button>
 </div>
 
@@ -309,23 +350,61 @@ body:not(.admin-unlocked) .tag-remove{display:none!important;}
   <!-- PH Upload -->
   <div id="upload-ph">
     <div class="page-heading">Upload Files — PH</div>
-    <div class="page-sub">Shopify orders export + Inspire invoice to audit the Philippines fulfillment.</div>
-    <input type="file" id="ph-file-shopify" accept=".csv" style="display:none" onchange="handleFilePH('shopify',this)"/>
+    <div class="page-sub">One Fusion pick list extract (covers all platforms) + order exports from each platform. Upload any combination — only the platforms you provide will be audited.</div>
+
+    <div class="section-divider">Fusion (3PL)</div>
     <input type="file" id="ph-file-inspire" accept=".xlsx,.xls" style="display:none" onchange="handleFilePH('inspire',this)"/>
     <div class="upload-grid cols-2">
-      <label class="drop-zone" id="ph-zone-shopify" for="ph-file-shopify">
-        <div class="drop-icon">🛍</div>
-        <div class="drop-label">Shopify Export</div>
-        <div class="drop-sub">CSV · Name, Financial Status, Lineitem qty, Lineitem sku</div>
-        <div class="drop-filename" id="ph-name-shopify">Click to select file</div>
-        <span class="drop-remove" onclick="removeFile('ph-zone-shopify','ph-file-shopify','ph')">✕ Remove</span>
-      </label>
       <label class="drop-zone" id="ph-zone-inspire" for="ph-file-inspire">
         <div class="drop-icon">📦</div>
-        <div class="drop-label">Inspire Invoice</div>
-        <div class="drop-sub">XLSX · Invoice, SKU, Quantity, Marketplace Order Number</div>
+        <div class="drop-label">Fusion Pick List Extract</div>
+        <div class="drop-sub">XLSX · pick-lists extract · reads the "Pick List Items" tab · covers Shopify, Shopee, Lazada &amp; TikTok</div>
         <div class="drop-filename" id="ph-name-inspire">Click to select file</div>
         <span class="drop-remove" onclick="removeFile('ph-zone-inspire','ph-file-inspire','ph')">✕ Remove</span>
+      </label>
+    </div>
+
+    <div class="section-divider">Platform Orders</div>
+    <input type="file" id="ph-file-shopify1" accept=".csv,.xlsx,.xls" style="display:none" onchange="handleFilePH('shopify1',this)"/>
+    <input type="file" id="ph-file-shopify2" accept=".csv,.xlsx,.xls" style="display:none" onchange="handleFilePH('shopify2',this)"/>
+    <input type="file" id="ph-file-shopee"  accept=".xlsx,.xls,.csv" style="display:none" onchange="handleFilePH('shopee',this)"/>
+    <input type="file" id="ph-file-lazada"  accept=".xlsx,.xls,.csv" style="display:none" onchange="handleFilePH('lazada',this)"/>
+    <input type="file" id="ph-file-tiktok"  accept=".csv,.xlsx,.xls" style="display:none" onchange="handleFilePH('tiktok',this)"/>
+    <div class="upload-grid cols-4" style="grid-template-columns:repeat(5,1fr);">
+      <label class="drop-zone" id="ph-zone-shopify1" for="ph-file-shopify1">
+        <div class="drop-icon">🛍</div>
+        <div class="drop-label">Shopify (1)</div>
+        <div class="drop-sub">CSV/XLSX · Order, Order ID, SKU, Qty</div>
+        <div class="drop-filename" id="ph-name-shopify1">Optional</div>
+        <span class="drop-remove" onclick="removeFile('ph-zone-shopify1','ph-file-shopify1','ph')">✕ Remove</span>
+      </label>
+      <label class="drop-zone" id="ph-zone-shopify2" for="ph-file-shopify2">
+        <div class="drop-icon">🛍</div>
+        <div class="drop-label">Shopify (2)</div>
+        <div class="drop-sub">CSV/XLSX · second store / export</div>
+        <div class="drop-filename" id="ph-name-shopify2">Optional</div>
+        <span class="drop-remove" onclick="removeFile('ph-zone-shopify2','ph-file-shopify2','ph')">✕ Remove</span>
+      </label>
+      <label class="drop-zone" id="ph-zone-shopee" for="ph-file-shopee">
+        <div class="drop-icon">🛒</div>
+        <div class="drop-label">Shopee</div>
+        <div class="drop-sub">XLSX · Order ID, SKU Reference No., Quantity</div>
+        <div class="drop-filename" id="ph-name-shopee">Optional</div>
+        <span class="drop-remove" onclick="removeFile('ph-zone-shopee','ph-file-shopee','ph')">✕ Remove</span>
+      </label>
+      <label class="drop-zone" id="ph-zone-lazada" for="ph-file-lazada">
+        <div class="drop-icon">📦</div>
+        <div class="drop-label">Lazada</div>
+        <div class="drop-sub">XLSX · orderNumber, sellerSku (1 row = 1 unit)</div>
+        <div class="drop-filename" id="ph-name-lazada">Optional</div>
+        <span class="drop-remove" onclick="removeFile('ph-zone-lazada','ph-file-lazada','ph')">✕ Remove</span>
+      </label>
+      <label class="drop-zone" id="ph-zone-tiktok" for="ph-file-tiktok">
+        <div class="drop-icon">🎵</div>
+        <div class="drop-label">TikTok</div>
+        <div class="drop-sub">XLSX/CSV · Order ID, Seller SKU, Quantity</div>
+        <div class="drop-filename" id="ph-name-tiktok">Optional</div>
+        <span class="drop-remove" onclick="removeFile('ph-zone-tiktok','ph-file-tiktok','ph')">✕ Remove</span>
       </label>
     </div>
     <div class="progress-bar" id="ph-progress-bar"><div class="progress-fill" id="ph-progress-fill"></div></div>
@@ -403,6 +482,9 @@ body:not(.admin-unlocked) .tag-remove{display:none!important;}
     <div class="progress-bar" id="my-progress-bar"><div class="progress-fill" id="my-progress-fill"></div></div>
     <button class="run-btn" id="my-run-btn" disabled onclick="runMY()">Run MY Audit</button>
   </div>
+
+
+
 </div>
 
 <!-- ══ DASHBOARD ══════════════════════════════════════════════ -->
@@ -431,21 +513,21 @@ body:not(.admin-unlocked) .tag-remove{display:none!important;}
 
 <!-- ══ RULES ══════════════════════════════════════════════════ -->
 <div class="page" id="page-rules">
-  <!-- Admin lock bar -->
+  <!-- Admin access bar (role-based via login) -->
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px;">
     <div>
-      <div style="font-size:13px;color:var(--muted)">SKU Rules are <span id="admin-status-text">read-only</span>. Click Admin to edit.</div>
+      <div style="font-size:13px;color:var(--muted)"><span id="admin-status-text">read-only</span></div>
     </div>
-    <button id="admin-lock-btn" onclick="toggleAdmin()">🔒 Admin</button>
+    <button id="admin-lock-btn" onclick="toggleAdmin()" style="display:none">🔒 Admin</button>
   </div>
   <!-- PH Rules -->
   <div id="rules-ph">
-    <div class="page-heading">SKU Rules — PH (Inspire)</div>
+    <div class="page-heading">SKU Rules — PH (Fusion)</div>
     <div class="page-sub">Configure how SKUs are interpreted for the PH market. Changes apply on the next run.</div>
     <div class="rules-grid">
       <div class="rule-card">
         <div class="rule-card-title">Mixed Set SKUs</div>
-        <div class="rule-card-desc">Treated as a single product — Inspire should NOT expand these into components.</div>
+        <div class="rule-card-desc">Treated as a single product — Fusion should NOT expand these into components.</div>
         <div class="tag-list" id="tags-mixed"></div>
         <div class="rule-input-row">
           <input class="rule-input" id="input-mixed" placeholder="e.g. PN-BUNDLE-CGB610+CGCY610+CGSS610" onkeydown="if(event.key==='Enter')addTag('mixed')"/>
@@ -624,11 +706,37 @@ body:not(.admin-unlocked) .tag-remove{display:none!important;}
   </div>
 </div>
 
+<!-- ══ USER MANAGEMENT (admin only) ══════════════════════════════ -->
+<div class="page" id="page-users">
+  <div class="page-heading">User Management</div>
+  <div class="page-sub">Manage who can edit SKU Rules. Anyone with a login can view and run audits; only emails on this list can make changes. Login accounts themselves are created in the Firebase Console.</div>
+
+  <div id="users-gate" style="display:none;background:var(--red-lt);border:1px solid var(--red-bd);border-radius:var(--radius);padding:20px;color:var(--red);font-size:14px;">
+    You don't have admin access, so you can't manage users. Ask an existing admin to add your email.
+  </div>
+
+  <div id="users-panel" style="display:none;">
+    <div class="rule-card" style="max-width:640px;">
+      <div class="rule-card-title">Admins (SKU Rules editors)</div>
+      <div class="rule-card-desc">These accounts can edit SKU Rules and manage this list. Changes save to Firestore immediately and apply to everyone on their next sign-in.</div>
+      <div class="tag-list" id="admin-email-list" style="margin-bottom:12px;"></div>
+      <div class="rule-input-row">
+        <input class="rule-input" id="input-admin-email" type="email" placeholder="name@thepurestgroup.com" onkeydown="if(event.key==='Enter')addAdminEmail()"/>
+        <button class="rule-add-btn" onclick="addAdminEmail()">Add Admin</button>
+      </div>
+      <div id="users-msg" style="font-size:12px;color:var(--muted);margin-top:10px;min-height:16px;"></div>
+    </div>
+    <div style="font-size:12px;color:var(--subtle);margin-top:14px;max-width:640px;line-height:1.6;">
+      Note: removing your own email will drop your edit access on your next sign-in. To create or delete the actual login accounts (email + password), use the Firebase Console → Authentication, since those operations require admin credentials that can't live in this page.
+    </div>
+  </div>
+</div>
+
 <script>
 // ══ STATE ════════════════════════════════════════════════════════
 const state={
   market:'ph',
-  ph:{shopifyData:null,inspireData:null,results:null},
+  ph:{shopify1Data:null,shopify2Data:null,shopeeData:null,lazadaData:null,tiktokData:null,inspireData:null,results:null},
   my:{njvData:null,shopify1Data:null,shopify2Data:null,shopify3Data:null,shopeeData:null,lazadaData:null,tiktokData:null,results:null},
 };
 let prevCounts={ph:null,my:null};
@@ -637,44 +745,106 @@ try{const p=JSON.parse(localStorage.getItem('icPrevCounts2'));if(p)prevCounts=p;
 // PH Rules
 // ── Firebase Setup ────────────────────────────────────────────────────────
 const firebaseConfig={
-  apiKey:"AIzaSyAzibrJ1TCtv6pojhBQYEvxqKtLsWMabs4",
-  authDomain:"purest-sync-tool.firebaseapp.com",
-  projectId:"purest-sync-tool",
-  storageBucket:"purest-sync-tool.firebasestorage.app",
-  messagingSenderId:"634850390349",
-  appId:"1:634850390349:web:6fd3ba4964e2152e55c704"
+  apiKey:"AIzaSyDM3-Ob02qPFG0Wp67o9iWsohuw6hj3VhE",
+  authDomain:"purest-logx-tools.firebaseapp.com",
+  projectId:"purest-logx-tools",
+  storageBucket:"purest-logx-tools.firebasestorage.app",
+  messagingSenderId:"684066133614",
+  appId:"1:684066133614:web:26c955f62ec49bb88fb87f"
 };
-let db=null;
+let db=null;let auth=null;
 try{
   firebase.initializeApp(firebaseConfig);
   db=firebase.firestore();
+  auth=firebase.auth();
+  auth.setPersistence(firebase.auth.Auth.Persistence.SESSION).catch(()=>{});
 }catch(e){
   console.warn('Firebase unavailable — running in local-only mode.',e);
 }
 
+// ── Auth gate ──────────────────────────────────────────────────────────────
+function doLogin(){
+  const email=document.getElementById('login-email').value.trim();
+  const pw=document.getElementById('login-password').value;
+  const errEl=document.getElementById('login-error');
+  const btn=document.getElementById('login-btn');
+  errEl.textContent='';
+  if(!email||!pw){errEl.textContent='Enter your email and password.';return;}
+  if(!auth){errEl.textContent='Authentication service unavailable. Check your connection and reload.';return;}
+  btn.disabled=true;btn.textContent='Signing in…';
+  auth.signInWithEmailAndPassword(email,pw)
+    .catch(err=>{
+      const map={'auth/invalid-email':'That email address looks invalid.','auth/user-not-found':'No account found for that email.','auth/wrong-password':'Incorrect password.','auth/invalid-credential':'Incorrect email or password.','auth/too-many-requests':'Too many attempts. Please wait a moment and try again.','auth/network-request-failed':'Network error. Check your connection.'};
+      errEl.textContent=map[err.code]||('Sign-in failed: '+err.message);
+    })
+    .finally(()=>{btn.disabled=false;btn.textContent='Sign In';});
+}
+function doLogout(){
+  if(auth)auth.signOut();
+}
+// ── Inactivity timeout (2h, same as the other LOGX tools) ──
+const INACTIVITY_MS=2*60*60*1000;let _idleT=null;
+function resetIdle(){clearTimeout(_idleT);if(auth&&auth.currentUser)_idleT=setTimeout(()=>{doLogout();toast('Signed out after 2 hours of inactivity.',true);},INACTIVITY_MS);}
+['click','keydown','mousemove','touchstart'].forEach(ev=>document.addEventListener(ev,resetIdle,{passive:true}));
+if(auth){
+  auth.onAuthStateChanged(async user=>{
+    const overlay=document.getElementById('login-overlay');
+    const emailEl=document.getElementById('user-email');
+    if(user){
+      currentUserEmail=user.email||'';
+      overlay.classList.add('hidden');
+      if(emailEl)emailEl.textContent=currentUserEmail;
+      document.getElementById('login-password').value='';
+      await loadAdminList();
+      applyAdminState();
+      resetIdle();
+      loadRulesFromFirestore();
+    }else{
+      currentUserEmail='';
+      overlay.classList.remove('hidden');
+      if(emailEl)emailEl.textContent='';
+      adminUnlocked=false;document.body.classList.remove('admin-unlocked');
+      clearTimeout(_idleT);
+    }
+  });
+}else{
+  // No auth available (offline) — leave the gate visible with a message
+  window.addEventListener('DOMContentLoaded',()=>{
+    const errEl=document.getElementById('login-error');
+    if(errEl)errEl.textContent='Authentication service unavailable. Check your connection and reload.';
+  });
+}
+
 // ── Admin state ────────────────────────────────────────────────────────────
-let adminUnlocked=false;
-function toggleAdmin(){
+let adminUnlocked=false;let currentUserEmail='';let adminEmails=[];
+// Load the admin email list from Firestore (rules/admins → {emails:[...]})
+async function loadAdminList(){
+  if(!db)return;
+  try{
+    const doc=await db.collection('rules').doc('admins').get();
+    if(doc.exists){const d=doc.data();adminEmails=(d.emails||[]).map(e=>String(e).trim().toLowerCase());}
+  }catch(e){console.warn('Could not load admin list',e);}
+}
+function isAdmin(){return !!currentUserEmail&&adminEmails.includes(currentUserEmail.toLowerCase());}
+function applyAdminState(){
   const btn=document.getElementById('admin-lock-btn');
   const statusText=document.getElementById('admin-status-text');
+  const usersTab=document.getElementById('tab-users');
+  adminUnlocked=isAdmin();
+  if(usersTab)usersTab.style.display=adminUnlocked?'':'none';
   if(adminUnlocked){
-    adminUnlocked=false;
+    document.body.classList.add('admin-unlocked');
+    if(btn){btn.textContent='🔓 Admin';btn.classList.add('unlocked');btn.style.display='none';}
+    if(statusText)statusText.textContent='edit mode — you have admin access';
+  }else{
     document.body.classList.remove('admin-unlocked');
-    if(btn){btn.textContent='🔒 Admin';btn.classList.remove('unlocked');}
-    if(statusText)statusText.textContent='read-only';
-  } else {
-    const pw=prompt('Enter admin password:');
-    if(pw==='Purest2025'){
-      adminUnlocked=true;
-      document.body.classList.add('admin-unlocked');
-      if(btn){btn.textContent='🔓 Admin';btn.classList.add('unlocked');}
-      if(statusText)statusText.textContent='edit mode';
-    } else if(pw!==null){
-      setTimeout(()=>toast('Incorrect password',true),100);
-    }
+    if(btn){btn.style.display='none';}
+    if(statusText)statusText.textContent='read-only — your account does not have admin access';
   }
 }
-function requireAdmin(){if(!adminUnlocked){toast('Admin access required',true);return false;}return true;}
+// Kept as a no-op so any old onclick still works; admin is now role-based, not a button.
+function toggleAdmin(){toast(isAdmin()?'You have admin access.':'Your account does not have admin access. Ask an admin to add your email.',!isAdmin());}
+function requireAdmin(){if(!isAdmin()){toast('Admin access required — your account is not on the admin list.',true);return false;}return true;}
 
 // ── Default rules ─────────────────────────────────────────────────────────
 const DEFAULT_PH={mixedSet:['PN-BUNDLE-CGB610+CGCY610+CGSS610'],standalone:['PN-ES-PEH-2','PN-SB-CGCY6-5'],excluded:['refunded'],shopifyTagExcl:[],shopifyRiskExcl:['High','Medium'],multiUnit:[{sku:'PN-SB-SOSE-90',mother:'PN-SB-SOSE-30',mult:3}]};
@@ -732,6 +902,7 @@ const saveMYRules=async()=>{
 };
 
 // ══ MARKET SWITCHER ═══════════════════════════════════════════════
+function marketLabel(m){return m==='ph'?'🇵🇭 PH — Fusion':'🇲🇾 MY — NJV';}
 function switchMarket(mkt,btn){
   state.market=mkt;
   document.querySelectorAll('.market-btn').forEach(b=>b.classList.remove('active'));
@@ -753,7 +924,7 @@ function switchMarket(mkt,btn){
       document.getElementById('alert-banner').querySelector('.alert-text').innerHTML='No audit run yet for this market. Go to <strong>Upload</strong> to run one.';
       document.getElementById('alert-banner').querySelector('.alert-icon').textContent='ℹ️';
       document.getElementById('dash-time').textContent='—';
-      document.getElementById('dash-market-label').textContent=mkt==='ph'?'🇵🇭 PH — Inspire':'🇲🇾 MY — NJV';
+      document.getElementById('dash-market-label').textContent=marketLabel(mkt);
       document.getElementById('tiles').innerHTML='';
       document.getElementById('delta-row').innerHTML='';
       document.getElementById('detail-label').textContent='Select a tile above to view details';
@@ -770,6 +941,48 @@ function showPage(name,btn){
   if(btn)btn.classList.add('active');
   if(name==='rules')renderRules();
   if(name==='bundles')renderBundleMap();
+  if(name==='users')renderUsers();
+}
+// ── User management (admin list) ──────────────────────────────────────────
+function renderUsers(){
+  const gate=document.getElementById('users-gate');
+  const panel=document.getElementById('users-panel');
+  if(!isAdmin()){gate.style.display='';panel.style.display='none';return;}
+  gate.style.display='none';panel.style.display='';
+  const list=document.getElementById('admin-email-list');
+  if(!adminEmails.length){list.innerHTML='<span style="font-size:12px;color:var(--muted)">No admins configured yet.</span>';return;}
+  list.innerHTML=adminEmails.slice().sort().map(e=>{
+    const isSelf=e.toLowerCase()===currentUserEmail.toLowerCase();
+    return `<span class="tag">${e}${isSelf?' <span style="opacity:.6;font-size:10px">(you)</span>':''}<span class="tag-remove" onclick="removeAdminEmail('${e.replace(/'/g,"\\'")}')">×</span></span>`;
+  }).join('');
+}
+function usersMsg(t,isErr){const el=document.getElementById('users-msg');if(el){el.textContent=t;el.style.color=isErr?'var(--red)':'var(--muted)';}}
+async function saveAdminList(){
+  if(!db)throw new Error('No database connection');
+  await db.collection('rules').doc('admins').set({emails:adminEmails});
+}
+async function addAdminEmail(){
+  if(!isAdmin()){usersMsg('Only admins can add admins.',true);return;}
+  const inp=document.getElementById('input-admin-email');
+  const email=inp.value.trim().toLowerCase();
+  if(!email){return;}
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){usersMsg('That doesn\'t look like a valid email address.',true);return;}
+  if(adminEmails.map(e=>e.toLowerCase()).includes(email)){usersMsg('That email is already an admin.',true);inp.value='';return;}
+  adminEmails.push(email);
+  try{await saveAdminList();inp.value='';usersMsg('Added '+email+'. They\'ll have edit access on their next sign-in.');renderUsers();}
+  catch(e){adminEmails=adminEmails.filter(x=>x!==email);usersMsg('Could not save: '+e.message,true);renderUsers();}
+}
+async function removeAdminEmail(email){
+  if(!isAdmin()){usersMsg('Only admins can remove admins.',true);return;}
+  const isSelf=email.toLowerCase()===currentUserEmail.toLowerCase();
+  const last=adminEmails.length<=1;
+  let warn=isSelf?'Remove yourself as admin? You\'ll lose edit access on your next sign-in.':'Remove '+email+' as an admin?';
+  if(last)warn='This is the last admin. Removing it means nobody can edit rules or manage users (you\'d need the Firebase Console to fix it). Continue?';
+  if(!confirm(warn))return;
+  const prev=adminEmails.slice();
+  adminEmails=adminEmails.filter(e=>e.toLowerCase()!==email.toLowerCase());
+  try{await saveAdminList();usersMsg('Removed '+email+'.');if(isSelf)applyAdminState();renderUsers();}
+  catch(e){adminEmails=prev;usersMsg('Could not save: '+e.message,true);renderUsers();}
 }
 // [restore moved to bottom]
 
@@ -784,7 +997,7 @@ function fixSheetRef(ws){
   ws['!ref']=XLSX.utils.encode_range({s:{r:0,c:0},e:{r:maxR,c:maxC}});
   return ws;
 }
-function readXLSX(file,cb,preserveStrCols){
+function readXLSX(file,cb,preserveStrCols,sheetPick){
   function patchStrCols(ws,data,strCols){
     if(!strCols||!strCols.length)return;
     const range=XLSX.utils.decode_range(ws['!ref']||'A1');
@@ -808,7 +1021,7 @@ function readXLSX(file,cb,preserveStrCols){
   r.onload=e=>{
     try{
       const wb=XLSX.read(e.target.result,{type:'binary',cellText:true});
-      const ws=fixSheetRef(wb.Sheets[wb.SheetNames[0]]);
+      const ws=fixSheetRef(wb.Sheets[(sheetPick&&sheetPick(wb.SheetNames))||wb.SheetNames[0]]);
       const data=XLSX.utils.sheet_to_json(ws,{defval:''});
       patchStrCols(ws,data,preserveStrCols);
       cb(data);
@@ -816,7 +1029,7 @@ function readXLSX(file,cb,preserveStrCols){
       const r2=new FileReader();
       r2.onload=e2=>{
         const wb=XLSX.read(new Uint8Array(e2.target.result),{type:'array',cellText:true});
-        const ws=fixSheetRef(wb.Sheets[wb.SheetNames[0]]);
+        const ws=fixSheetRef(wb.Sheets[(sheetPick&&sheetPick(wb.SheetNames))||wb.SheetNames[0]]);
         const data=XLSX.utils.sheet_to_json(ws,{defval:''});
         patchStrCols(ws,data,preserveStrCols);
         cb(data);
@@ -868,9 +1081,22 @@ function handleFilePH(type,input){
   document.getElementById('ph-zone-'+type).classList.add('ready');
   document.getElementById('ph-name-'+type).textContent=file.name;
   const done=data=>{state.ph[type+'Data']=data;checkReadyPH();};
-  type==='shopify'?readCSV(file,done):readXLSX(file,done);
+  const ext=file.name.split('.').pop().toLowerCase();
+  if(type==='inspire'){
+    readXLSX(file,done,null,names=>names.find(n=>/pick list items/i.test(n)));
+  } else if(type==='shopify1'||type==='shopify2'){
+    ext==='csv'?readCSV(file,done):readXLSX(file,done,['Order ID','Id']);
+  } else {
+    // Shopee / Lazada / TikTok — TikTok has a description row 2 to drop
+    const post=data=>{
+      if(data.length&&String((data[0]['Order ID']||data[0]['orderNumber']||'')).includes('Platform unique order'))data=data.slice(1);
+      done(data);
+    };
+    ext==='csv'?readCSV(file,post):readXLSX(file,post,type==='tiktok'?['Order ID']:null);
+  }
 }
-function checkReadyPH(){document.getElementById('ph-run-btn').disabled=!(state.ph.shopifyData&&state.ph.inspireData);}
+// Ready when Fusion is present AND at least one platform file is present
+function checkReadyPH(){document.getElementById('ph-run-btn').disabled=!(state.ph.inspireData&&(state.ph.shopify1Data||state.ph.shopify2Data||state.ph.shopeeData||state.ph.lazadaData||state.ph.tiktokData));}
 
 function removeFile(zoneId, fileId, market){
   event.preventDefault();
@@ -884,12 +1110,11 @@ function removeFile(zoneId, fileId, market){
   // Reset filename label
   const type=zoneId.replace(market+'-zone-','');
   const nameEl=document.getElementById(zoneId.replace('zone','name'));
-  if(nameEl)nameEl.textContent=(['shopify','inspire','njv'].includes(type)?'Click to select file':'Optional');
+  if(nameEl)nameEl.textContent=(['inspire','njv'].includes(type)?'Click to select file':'Optional');
   // Clear state data
   if(market==='ph'){
-    if(type==='shopify')state.ph.shopifyData=null;
-    if(type==='inspire')state.ph.inspireData=null;
-    document.getElementById('ph-run-btn').disabled=!(state.ph.shopifyData&&state.ph.inspireData);
+    state.ph[type+'Data']=null;
+    checkReadyPH();
   } else {
     if(type==='shopify1')state.my.shopify1Data=null;
     if(type==='shopify2')state.my.shopify2Data=null;
@@ -913,6 +1138,7 @@ function handleFileMY(type,input){
 function checkReadyMY(){document.getElementById('my-run-btn').disabled=!state.my.njvData;}
 
 // ══ RUN ═══════════════════════════════════════════════════════════
+function runBtnLabel(m){return m==='ph'?'Run PH Audit':'Run MY Audit';}
 function runWithProgress(market,compareFn){
   const pfx=market;
   const btn=document.getElementById(pfx+'-run-btn'),pb=document.getElementById(pfx+'-progress-bar'),pf=document.getElementById(pfx+'-progress-fill');
@@ -924,7 +1150,7 @@ function runWithProgress(market,compareFn){
       state[market].results=results;
       pf.style.width='100%';
       setTimeout(()=>{
-        pb.style.display='none';btn.textContent=market==='ph'?'Run PH Audit':'Run MY Audit';btn.disabled=false;
+        pb.style.display='none';btn.textContent=runBtnLabel(market);btn.disabled=false;
         renderDashboard(results,market);
         document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
         document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
@@ -932,7 +1158,7 @@ function runWithProgress(market,compareFn){
         document.getElementById('tab-dashboard').classList.add('active');
         toast('Audit complete ✓');
       },300);
-    }catch(e){pb.style.display='none';btn.textContent=market==='ph'?'Run PH Audit':'Run MY Audit';btn.disabled=false;toast('Error: '+e.message,true);console.error(e);}
+    }catch(e){pb.style.display='none';btn.textContent=runBtnLabel(market);btn.disabled=false;toast('Error: '+e.message,true);console.error(e);}
   },200);
 }
 function runPH(){runWithProgress('ph',comparePH);}
@@ -947,28 +1173,80 @@ function classifyPH(sku){if(BUNDLE_PFX.some(p=>sku.startsWith(p)))return PH_RULE
 function findHdr(sku,insSet){if(insSet.has('BUNDLE -'+sku))return'BUNDLE -'+sku;if(insSet.has(sku))return sku;return null;}
 
 function comparePH(){
+  const shopifyPHData=[...(state.ph.shopify1Data||[]),...(state.ph.shopify2Data||[])];
   const excl=new Set(PH_RULES.excluded.map(s=>s.toLowerCase()));
   let lastStatus='';
   const phTagExcl=(PH_RULES.shopifyTagExcl||[]).map(t=>t.toLowerCase());
   const phRiskExcl=new Set((PH_RULES.shopifyRiskExcl||[]).map(r=>r.toLowerCase()));
   // Pre-scan: priority — 2nd Financial Status → 3rd Risk Level → 4th Tags
-  const phTagExcludedMap=new Map(); // orderId -> matched tag label
-  const phRiskExcludedMap=new Map(); // orderId -> risk level
+  const phTagExcludedMap=new Map(); // orderName -> matched tag label
+  const phRiskExcludedMap=new Map(); // orderName -> risk level
   let lastStatusScan='';
-  state.ph.shopifyData.forEach(r=>{
-    const name=String(r['Name']||'').trim();if(!name)return;
-    const fs=(r['Financial Status']||'').toLowerCase();if(fs)lastStatusScan=fs;
+  // ── Field mapping: supports both the legacy orders CSV (Name/Id/Financial Status/Lineitem…)
+  // and the Shopify report export xlsx (Order/Order ID/Payment status/Product variant SKU…)
+  const sf=(r,ks)=>{for(const k of ks){if(r[k]!==undefined&&r[k]!==null&&String(r[k]).trim()!=='')return r[k];}return '';};
+  const fName=r=>String(sf(r,['Name','Order'])).trim();
+  const fId=r=>String(sf(r,['Id','Order ID'])).trim();
+  const fFS=r=>String(sf(r,['Financial Status','Payment status'])).toLowerCase();
+  const fSku=r=>String(sf(r,['Lineitem sku','Product variant SKU'])).trim();
+  const fQty=r=>+sf(r,['Lineitem quantity','Ordered quantity'])||0;
+  const fTags=r=>String(sf(r,['Tags','Order tags'])||'');
+  const fRisk=r=>String(sf(r,['Risk Level'])||'').trim();
+  // ── Per-order fulfillment status ──
+  // Legacy CSV: order-level 'Fulfillment Status' (fulfilled/partial/unfulfilled).
+  // Report xlsx: derived from 'Order item unfulfilled quantity' vs 'Ordered quantity'.
+  const fulfilStatus={};
+  {
+    const agg={};
+    shopifyPHData.forEach(r=>{
+      const name=fName(r);if(!name)return;
+      const legacy=String(r['Fulfillment Status']||'').trim().toLowerCase();
+      if(legacy&&!fulfilStatus[name])fulfilStatus[name]=legacy;
+      const sku=fSku(r);if(!sku)return;
+      const unfulRaw=sf(r,['Order item unfulfilled quantity']);
+      if(unfulRaw!==''){
+        if(!agg[name])agg[name]={ord:0,unful:0};
+        agg[name].ord+=fQty(r);agg[name].unful+=(+unfulRaw||0);
+      }
+    });
+    Object.keys(agg).forEach(name=>{
+      if(fulfilStatus[name])return; // legacy column wins
+      const a=agg[name];
+      fulfilStatus[name]=a.unful<=0?'fulfilled':(a.unful>=a.ord&&a.ord>0?'unfulfilled':'partial');
+    });
+  }
+  shopifyPHData.forEach(r=>{
+    const name=fName(r);if(!name)return;
+    const fs=fFS(r);if(fs)lastStatusScan=fs;
     if(excl.has(lastStatusScan))return; // financial status wins — handled in main pass
     if(!phRiskExcludedMap.has(name)){
-      const risk=(r['Risk Level']||'').trim();
+      const risk=fRisk(r);
       if(risk&&phRiskExcl.has(risk.toLowerCase())){phRiskExcludedMap.set(name,risk);return;}
     }
     if(!phTagExcludedMap.has(name)&&!phRiskExcludedMap.has(name)){
-      const rowTags=(r['Tags']||'').split(',').map(t=>t.trim().toLowerCase());
+      const rowTags=fTags(r).split(',').map(t=>t.trim().toLowerCase());
       for(const t of phTagExcl){if(rowTags.includes(t)){phTagExcludedMap.set(name,t);break;}}
     }
   });
-  const shopRows=state.ph.shopifyData.map(r=>{const fs=(r['Financial Status']||'').toLowerCase();if(fs)lastStatus=fs;const tags=(r['Tags']||'').split(',').map(t=>t.trim().toLowerCase());return{name:String(r['Name']||'').trim(),status:lastStatus,sku:String(r['Lineitem sku']||'').trim(),qty:+r['Lineitem quantity']||0,tags};}).filter(r=>r.name&&r.sku);
+  // ── Detect 3PL source format: Fusion pick-list extract vs legacy Inspire invoice
+  const insRows=state.ph.inspireData||[];
+  const insKeys=insRows.length?Object.keys(insRows[0]):[];
+  const isFusion=insKeys.some(k=>/^invoice number$/i.test(String(k).trim()))&&insKeys.some(k=>/picked quantity/i.test(String(k).trim()));
+  const srcName=isFusion?'Fusion':'Inspire';
+  // Shopify numeric Id per order (Fusion matches on Shopify order Id, not order Name)
+  const nameToId={};
+  shopifyPHData.forEach(r=>{
+    const name=fName(r);
+    const id=fId(r);
+    if(name&&id&&!nameToId[name])nameToId[name]=id;
+  });
+  if(isFusion&&shopifyPHData.length&&!Object.keys(nameToId).length)throw new Error('Fusion matching needs the "Id" column in the Shopify export — re-export your Shopify orders including the Id field.');
+  const corruptIds=Object.values(nameToId).filter(v=>/e\+/i.test(v));
+  if(isFusion&&corruptIds.length)throw new Error('Shopify "Id" column is corrupted — values like "'+corruptIds[0]+'" are in scientific notation, which happens when the CSV is opened and re-saved in Excel. Please re-export from Shopify and upload the file without opening it in Excel.');
+  const keyOf=n=>isFusion?(nameToId[n]||''):n;
+  const keyToName={};Object.keys(nameToId).forEach(n=>{keyToName[nameToId[n]]=n;});
+  const disp=k=>keyToName[k]||k;
+  const shopRows=shopifyPHData.map(r=>{const fs=fFS(r);if(fs)lastStatus=fs;const tags=fTags(r).split(',').map(t=>t.trim().toLowerCase());return{name:fName(r),status:lastStatus,sku:fSku(r),qty:fQty(r),tags};}).filter(r=>r.name&&r.sku);
   const riskExcludedPH=new Set(phRiskExcludedMap.keys());
   const tagExcludedPH=new Set(phTagExcludedMap.keys());
   // Financial status wins over risk/tag — remove overlap
@@ -976,31 +1254,141 @@ function comparePH(){
   tagExcludedPH.forEach(n=>{if(shopRows.some(r=>r.name===n&&excl.has(r.status)))tagExcludedPH.delete(n);});
   const refunded=new Set(shopRows.filter(r=>excl.has(r.status)&&!riskExcludedPH.has(r.name)&&!tagExcludedPH.has(r.name)).map(r=>r.name));
   const allExcluded=new Set([...refunded,...riskExcludedPH,...tagExcludedPH]);
+  const excludedKeys=new Set([...allExcluded].map(keyOf).filter(Boolean));
   const active=shopRows.filter(r=>!allExcluded.has(r.name));
-  const shoMap={};
-  for(const r of active){if(!shoMap[r.name])shoMap[r.name]={};shoMap[r.name][r.sku]=(shoMap[r.name][r.sku]||0)+r.qty;}
-  const tMap={};
-  for(const r of state.ph.inspireData){const keys=Object.keys(r);const sk=String(r[keys.find(k=>/sku/i.test(k))]||'').trim();const tok=skuToken(sk);if(tok&&!sk.startsWith('BUNDLE -'))tMap[tok]=sk;}
-  const insMap={};
-  for(const r of state.ph.inspireData){const keys=Object.keys(r);const nm=String(r[keys.find(k=>/marketplace.*order|order.*number|name/i.test(k))]||'').trim();const sk=String(r[keys.find(k=>/sku/i.test(k))]||'').trim();const qt=+r[keys.find(k=>/quantity|qty/i.test(k))]||0;if(nm&&sk){if(!insMap[nm])insMap[nm]={};insMap[nm][sk]=(insMap[nm][sk]||0)+qt;}}
+  const shoMap={};const noIdSet=new Set();const platformOf={};
+  for(const r of active){const k=keyOf(r.name);if(!k){noIdSet.add(r.name);continue;}if(!shoMap[k])shoMap[k]={};shoMap[k][r.sku]=(shoMap[k][r.sku]||0)+r.qty;if(!platformOf[k])platformOf[k]='Shopify';}
+  // ── Merge marketplace platforms (Shopee/Lazada/TikTok): each order ID = Fusion invoice ──
+  const mktStatusExcluded=[]; // {order, platform, status, note}
+  function ingestMkt(mkt){
+    const cfg=MKT_CFG[mkt];const rows=state.ph[mkt.replace('ph','')+'Data']||state.ph[({phshopee:'shopee',phlazada:'lazada',phtiktok:'tiktok'})[mkt]];
+    if(!rows||!rows.length)return;
+    const exclList=(mkt==='phshopee'?MY_RULES.shopeeExcl:mkt==='phlazada'?MY_RULES.lazadaExcl:MY_RULES.tiktokExcl)||[];
+    const exclSet=new Set(exclList.map(s=>s.toLowerCase()));
+    const seenStatus={};
+    for(const r of rows){
+      const id=String(sfx(r,cfg.idCols)).trim();
+      if(!id||id==='Platform unique order ID.')continue;
+      const status=String(sfx(r,cfg.statusCols)).trim().toLowerCase();
+      if(status&&!seenStatus[id])seenStatus[id]=status;
+      if(status&&[...exclSet].some(x=>status.includes(x))){
+        if(!shoMap[id]&&!mktStatusExcluded.find(e=>e.order===id))mktStatusExcluded.push({order:id,platform:cfg.label,status,note:'Excluded — '+cfg.label+' order status'});
+        continue;
+      }
+      const rawSku=String(sfx(r,cfg.skuCols)).trim();if(!rawSku)continue;
+      const qty=cfg.rowIsOneUnit?1:(+sfx(r,cfg.qtyCols)||1);
+      if(!shoMap[id])shoMap[id]={};
+      shoMap[id][rawSku]=(shoMap[id][rawSku]||0)+qty;
+      if(!platformOf[id])platformOf[id]=cfg.label;
+    }
+  }
+  const sfx=(r,ks)=>{for(const k of ks){if(r[k]!==undefined&&r[k]!==null&&String(r[k]).trim()!=='')return r[k];}return '';};
+  ingestMkt('phshopee');ingestMkt('phlazada');ingestMkt('phtiktok');
+  // ── 3PL side: normalise both formats to { orderKey: { SKU: qty } }
+  const fCol=(row,re)=>{const k=Object.keys(row).find(k=>re.test(String(k).trim()));return k===undefined?'':row[k];};
+  const insMap={};const tMap={};const shortPicks=[];const fusionPlatform={};
+  for(const r of insRows){
+    if(isFusion){
+      const mp=String(fCol(r,/^marketplace$/i)||'').trim().toLowerCase();
+      const nm=String(fCol(r,/^invoice number$/i)||'').trim();
+      if(nm&&!fusionPlatform[nm]&&mp)fusionPlatform[nm]=mp.charAt(0).toUpperCase()+mp.slice(1);
+      const sk=String(fCol(r,/^sku$/i)||'').trim();
+      const picked=+fCol(r,/^picked quantity$/i)||0;
+      const toPick=+fCol(r,/^quantity to pick$/i)||0;
+      const reason=String(fCol(r,/^reason$/i)||'').trim();
+      if(!nm||!sk)continue;
+      const tok=skuToken(sk);if(tok)tMap[tok]=sk;
+      if(!insMap[nm])insMap[nm]={};
+      insMap[nm][sk]=(insMap[nm][sk]||0)+picked;
+      if(toPick>picked)shortPicks.push({order:disp(nm),inv:nm,sku:sk,toPick,picked,reason:reason&&reason.toUpperCase()!=='N/A'?reason:''});
+    }else{
+      const keys=Object.keys(r);
+      const sk=String(r[keys.find(k=>/sku/i.test(k))]||'').trim();
+      const tok=skuToken(sk);if(tok&&!sk.startsWith('BUNDLE -'))tMap[tok]=sk;
+      const nm=String(r[keys.find(k=>/marketplace.*order|order.*number|name/i.test(k))]||'').trim();
+      const qt=+r[keys.find(k=>/quantity|qty/i.test(k))]||0;
+      if(nm&&sk){if(!insMap[nm])insMap[nm]={};insMap[nm][sk]=(insMap[nm][sk]||0)+qt;}
+    }
+  }
   const shoNames=new Set(Object.keys(shoMap)),insNames=new Set(Object.keys(insMap));
   const common=[...shoNames].filter(n=>insNames.has(n));
-  const onlySho=[...shoNames].filter(n=>!insNames.has(n)&&!tagExcludedPH.has(n)&&!riskExcludedPH.has(n)).sort();
-  const onlyIns=[...insNames].filter(n=>!shoNames.has(n)&&!allExcluded.has(n)).sort();
-  const missing=[],extra=[],match=[],mismatch=[];
-  function rec(name,shopSku,insSku,sq,iq){const row={order:name,shopifySku:shopSku,inspireSku:insSku,sq,iq};if(sq===iq)match.push(row);else mismatch.push({...row,diff:sq-iq,remark:iq>sq?`Inspire has ${iq-sq} more`:`Inspire has ${sq-iq} less`});}
-  for(const name of common.sort()){
-    const insD=insMap[name],shoD=shoMap[name],insSet=new Set(Object.keys(insD)),explained=new Set();
+  const onlyShoAll=[...shoNames].filter(n=>!insNames.has(n)).sort();
+  // Orders where every line is qty 0 (manually edited to nothing) — no pick list is expected
+  const zeroedOnly=onlyShoAll.filter(k=>Object.values(shoMap[k]).every(q=>q===0));
+  const zeroedSet=new Set(zeroedOnly);
+  const onlySho=onlyShoAll.filter(k=>!zeroedSet.has(k));
+  const uploadedMps=new Set([['shopify',state.ph.shopify1Data||state.ph.shopify2Data],['shopee',state.ph.shopeeData],['lazada',state.ph.lazadaData],['tiktok',state.ph.tiktokData]].filter(x=>x[1]&&x[1].length).map(x=>x[0]));
+  const onlyInsKeys=[...insNames].filter(n=>!shoNames.has(n)&&!excludedKeys.has(n)&&!allExcluded.has(n)&&(!fusionPlatform[n]||uploadedMps.has(String(fusionPlatform[n]).toLowerCase()))).sort();
+  const onlyIns=onlyInsKeys.map(disp);
+  const onlyInsRows=onlyInsKeys.map(k=>({inv:k,platform:fusionPlatform[k]||''}));
+  const missing=[],extra=[],match=[],mismatch=[],editedItems=[];
+  for(const k of zeroedOnly){editedItems.push({order:disp(k),inv:isFusion?k:'',platform:platformOf[k]||'',shopifySku:Object.keys(shoMap[k]).join(' + '),fusionSku:'—',iq:'',note:'All lines qty 0 (manually edited order) — no pick list expected'});}
+  const plat=key=>platformOf[key]||fusionPlatform[key]||'';
+  const pushMissing=(key,sku,sq,issue)=>{
+    if(sq===0){editedItems.push({order:disp(key),inv:isFusion?key:'',platform:plat(key),shopifySku:sku,fusionSku:'—',iq:'',note:'Qty 0 (manually edited line) and not found in '+srcName+' — verify manually'});return;}
+    missing.push({order:disp(key),inv:isFusion?key:'',platform:plat(key),shopifySku:sku,sq,issue});
+  };
+  function rec(key,shopSku,insSku,sq,iq){const row={order:disp(key),inv:isFusion?key:'',platform:plat(key),shopifySku:shopSku,inspireSku:insSku,sq,iq};if(sq===iq)match.push(row);else mismatch.push({...row,diff:sq-iq,remark:iq>sq?srcName+' has '+(iq-sq)+' more':srcName+' has '+(sq-iq)+' less'});}
+  for(const key of common.sort()){
+    const insD=insMap[key],shoD=shoMap[key],insSet=new Set(Object.keys(insD)),explained=new Set();
+    // Aggregate expected qty per resolved 3PL SKU across ALL Shopify lines in the order,
+    // so multiple lines resolving to the same SKU (e.g. a single + a 3-pack, or two bundles
+    // sharing a component) are summed before comparing — prevents false mismatches.
+    const expected={},contrib={};
+    const addExp=(fSku,qty,label)=>{expected[fSku]=(expected[fSku]||0)+qty;(contrib[fSku]=contrib[fSku]||[]).push(label);explained.add(fSku);};
     for(const sku of Object.keys(shoD).sort()){
-      const sq=shoD[sku],kind=classifyPH(sku);
-      if(kind==='bundle'){const comps=decodePfxBundle(sku,tMap)||[],hdr=findHdr(sku,insSet);if(hdr){explained.add(hdr);rec(name,sku,hdr,sq,insD[hdr]);}else missing.push({order:name,shopifySku:sku,sq,issue:'Bundle header missing from Inspire'});for(const c of comps){if(insSet.has(c)){explained.add(c);rec(name,`${sku} → ${c}`,c,sq,insD[c]);}else missing.push({order:name,shopifySku:sku,sq,issue:`Bundle component ${c} missing`});}}
-      else if(kind==='multi'){const{mother,n}=decodeMulti(sku),expQ=sq*n,hdr=findHdr(sku,insSet);if(hdr){explained.add(hdr);rec(name,sku,hdr,sq,insD[hdr]);}else missing.push({order:name,shopifySku:sku,sq,issue:'Bundle header missing from Inspire'});if(insSet.has(mother)){explained.add(mother);rec(name,`${sku} → ${mother} (×${n})`,mother,expQ,insD[mother]);}else missing.push({order:name,shopifySku:sku,sq,issue:`Mother SKU ${mother} missing`});}
-      else{if(insSet.has(sku)){explained.add(sku);rec(name,sku,sku,sq,insD[sku]);}else missing.push({order:name,shopifySku:sku,sq,issue:'SKU missing from Inspire'});}
+      const sq=shoD[sku];
+      const cb=decodeMktCustomBundle(sku);
+      if(cb){for(const comp of cb){const cs=comp.sku;if(insSet.has(cs))addExp(cs,sq*comp.qty,sku+' → '+cs+(comp.qty>1?' (×'+comp.qty+')':''));else pushMissing(key,sku,sq,'Bundle component '+cs+' missing');}continue;}
+      const kind=classifyPH(sku);
+      if(kind==='bundle'){
+        const comps=decodePfxBundle(sku,tMap)||[],hdr=findHdr(sku,insSet);
+        if(hdr)addExp(hdr,sq,sku);
+        else if(!isFusion)missing.push({order:disp(key),inv:'',shopifySku:sku,sq,issue:'Bundle header missing from '+srcName});
+        for(const c of comps){if(insSet.has(c))addExp(c,sq,sku+' → '+c);else if(!hdr)pushMissing(key,sku,sq,'Bundle component '+c+' missing');}
+        if(isFusion&&!hdr&&!comps.length)pushMissing(key,sku,sq,'Bundle not decodable — no components found in '+srcName);
+      }
+      else if(kind==='multi'){
+        const{mother,n}=decodeMulti(sku),expQ=sq*n,hdr=findHdr(sku,insSet);
+        if(hdr)addExp(hdr,sq,sku);
+        else if(!isFusion)missing.push({order:disp(key),inv:'',shopifySku:sku,sq,issue:'Bundle header missing from '+srcName});
+        if(insSet.has(mother))addExp(mother,expQ,sku+' → '+mother+' (×'+n+')');
+        else if(!hdr)pushMissing(key,sku,sq,'Mother SKU '+mother+' missing');
+      }
+      else{if(insSet.has(sku))addExp(sku,sq,sku);else pushMissing(key,sku,sq,'SKU missing from '+srcName);}
     }
-    for(const sku of[...insSet].filter(s=>!explained.has(s))){if(sku.startsWith('BUNDLE -'))continue;extra.push({order:name,inspireSku:sku,iq:insD[sku],note:'In Inspire, not ordered in Shopify'});}
+    for(const fSku of Object.keys(expected).sort()){
+      if(expected[fSku]===0){editedItems.push({order:disp(key),inv:isFusion?key:'',platform:plat(key),shopifySku:contrib[fSku].join(' + '),fusionSku:fSku,iq:insD[fSku],note:'Export shows qty 0 (manually edited line) — verify quantity manually'});continue;}
+      rec(key,contrib[fSku].join(' + '),fSku,expected[fSku],insD[fSku]);
+    }
+    for(const sku of[...insSet].filter(s=>!explained.has(s))){if(sku.startsWith('BUNDLE -'))continue;extra.push({order:disp(key),inv:isFusion?key:'',platform:plat(key),inspireSku:sku,iq:insD[sku],note:'In '+srcName+', not ordered on platform'});}
   }
-  const onlyShoRows=[];for(const n of onlySho)for(const[sku,qty]of Object.entries(shoMap[n]))onlyShoRows.push({order:n,sku,qty});
-  return{type:'ph',refunded:[...refunded].sort(),tagExcluded:[...tagExcludedPH].sort(),tagExcludedLabels:Object.fromEntries(phTagExcludedMap),riskExcluded:[...riskExcludedPH].sort(),riskExcludedLabels:Object.fromEntries(phRiskExcludedMap),shoTotal:shoNames.size+allExcluded.size,shoActive:shoNames.size,insTotal:insNames.size,common:common.length,onlySho,onlyIns,onlyShoRows,missing,extra,match,mismatch};
+  const onlyShoRows=onlySho.map(k=>{const entries=Object.entries(shoMap[k]);return{order:disp(k),inv:isFusion?k:'',platform:platformOf[k]||'',skus:entries.map(e=>e[0]+' ×'+e[1]).join(', '),totalSkus:entries.length,fulfil:fulfilStatus[disp(k)]||''};});
+  // ── Fulfillment sync cross-check: Shopify fulfillment status vs pick list presence ──
+  const fulfilNoPick=[],pickedNotFulfil=[];
+  for(const name of Object.keys(fulfilStatus)){
+    if(allExcluded.has(name))continue;
+    const k=keyOf(name);if(!k)continue;
+    const st=fulfilStatus[name],inPick=insNames.has(k);
+    if((st==='fulfilled'||st==='partial')&&!inPick)fulfilNoPick.push({order:name,inv:isFusion?k:'',status:st,note:'Shopify shows '+st+' but no pick list found — check Fusion'});
+    else if(st==='unfulfilled'&&inPick)pickedNotFulfil.push({order:name,inv:isFusion?k:'',status:st,note:'Pick list exists but Shopify still unfulfilled — fulfillment sync lag'});
+  }
+  fulfilNoPick.sort((a,b)=>a.order<b.order?-1:1);pickedNotFulfil.sort((a,b)=>a.order<b.order?-1:1);
+  return{type:'ph',isFusion,shortPicks,editedItems,fulfilNoPick,pickedNotFulfil,noIdOrders:[...noIdSet].sort(),refunded:[...refunded].sort(),tagExcluded:[...tagExcludedPH].sort(),tagExcludedLabels:Object.fromEntries(phTagExcludedMap),riskExcluded:[...riskExcludedPH].sort(),riskExcludedLabels:Object.fromEntries(phRiskExcludedMap),shoTotal:shoNames.size+allExcluded.size,shoActive:shoNames.size,insTotal:insNames.size,common:common.length,onlySho:onlySho.map(disp),onlyIns,onlyInsRows,onlyShoRows,mktStatusExcluded,mktStatusExcludedCount:mktStatusExcluded.length,platformOf,fusionPlatform,missing,extra,match,mismatch};
+}
+
+// ══ PH MARKETPLACE CONFIG ═════════════════════════════════════════
+// MKT_CFG + decodeMktCustomBundle are used inside comparePH to ingest
+// Shopee/Lazada/TikTok order files and MY_RULES custom bundles.
+const MKT_CFG={
+  phshopee:{label:'Shopee',mp:'shopee',idCols:['Order ID'],skuCols:['SKU Reference No.','Seller SKU'],qtyCols:['Quantity'],statusCols:['Order Status','Return / Refund Status'],skipDescRow:false},
+  phlazada:{label:'Lazada',mp:'lazada',idCols:['orderNumber'],skuCols:['sellerSku'],qtyCols:['Quantity'],rowIsOneUnit:true,statusCols:['status'],skipDescRow:false},
+  phtiktok:{label:'TikTok',mp:'tiktok',idCols:['Order ID'],skuCols:['Seller SKU'],qtyCols:['Quantity'],statusCols:['Order Status','Order Substatus'],skipDescRow:true},
+};
+function decodeMktCustomBundle(sku){
+  const cb=(MY_RULES.myCustomBundles||[]).find(b=>b.sku===sku);
+  if(cb&&cb.components&&cb.components.length)return cb.components.map(x=>typeof x==='object'?{sku:x.sku,qty:x.qty||1}:{sku:x,qty:1});
+  return null;
 }
 
 // ══ MY COMPARISON ════════════════════════════════════════════════
@@ -1286,7 +1674,7 @@ let curView=null,curPage=1,curSearch='',curMarket=null;
 const PAGE=50;
 
 function makeTile(d){
-  const isIssueTile=['red','amber'].includes(d.cls)&&d.key!=='refunded'&&d.key!=='excl'&&d.key!=='tagExcluded'&&d.key!=='tagExcludedMY'&&d.key!=='riskExcluded'&&d.key!=='riskExcludedMY';
+  const isIssueTile=['red','amber'].includes(d.cls)&&!['refunded','excl','tagExcluded','tagExcludedMY','riskExcluded','riskExcludedMY','editedItems','pickedNotFulfil'].includes(d.key);
   const t=document.createElement('div');
   t.className=`tile ${d.cls}${isIssueTile&&d.val===0?' zero':''}`;
   t.dataset.key=d.key;
@@ -1304,9 +1692,10 @@ function renderDashboard(r,market){
   curMarket=market;
   document.getElementById('dash-time').textContent=new Date().toLocaleString();
   try{localStorage.setItem('icLastMarket',market);}catch(e){}
-  document.getElementById('dash-market-label').textContent=market==='ph'?'🇵🇭 PH — Inspire':'🇲🇾 MY — NJV';
+  document.getElementById('dash-market-label').textContent=marketLabel(market);
 
-  const issueCounts=market==='ph'
+  const isMkt=r.type==='mkt';
+  const issueCounts=(market==='ph'||isMkt)
     ?{mismatch:r.mismatch.length,missing:r.missing.length,extra:r.extra.length,onlySho:r.onlySho.length}
     :{mismatch:r.mismatch.length,missing:r.missing.length,extra:r.extra.length,onlyPlat:r.onlyPlat.length};
   const totalIssues=Object.values(issueCounts).reduce((a,b)=>a+b,0);
@@ -1322,10 +1711,15 @@ function renderDashboard(r,market){
     banner.className='alert-banner warn';bannerIcon.textContent='⚠';
     const parts=[];
     if(r.mismatch.length)parts.push(`<strong>${r.mismatch.length}</strong> QTY mismatch${r.mismatch.length!==1?'es':''}`);
-    if(r.missing.length)parts.push(`<strong>${r.missing.length}</strong> missing from ${market==='ph'?'Inspire':'NJV'}`);
-    if(r.extra.length)parts.push(`<strong>${r.extra.length}</strong> extra in ${market==='ph'?'Inspire':'NJV'}`);
-    const onlyLabel=market==='ph'?`${r.onlySho.length} order${r.onlySho.length!==1?'s':''} only in Shopify`:`${r.onlyPlat.length} order${r.onlyPlat.length!==1?'s':''} only in platforms`;
-    if((market==='ph'?r.onlySho.length:r.onlyPlat.length))parts.push(`<strong>${onlyLabel}</strong>`);
+    if(r.missing.length)parts.push(`<strong>${r.missing.length}</strong> missing from ${market==='my'?'NJV':'Fusion'}`);
+    if(r.extra.length)parts.push(`<strong>${r.extra.length}</strong> extra in ${market==='my'?'NJV':'Fusion'}`);
+    if(r.shortPicks&&r.shortPicks.length)parts.push(`<strong>${r.shortPicks.length}</strong> short pick${r.shortPicks.length!==1?'s':''} flagged by Fusion`);
+    if(r.fulfilNoPick&&r.fulfilNoPick.length)parts.push(`<strong>${r.fulfilNoPick.length}</strong> fulfilled without pick list`);
+    if(r.pickedNotFulfil&&r.pickedNotFulfil.length)parts.push(`<strong>${r.pickedNotFulfil.length}</strong> picked but not fulfilled`);
+    if(r.editedItems&&r.editedItems.length)parts.push(`<strong>${r.editedItems.length}</strong> edited item${r.editedItems.length!==1?'s':''} to review`);
+    if(r.noIdOrders&&r.noIdOrders.length)parts.push(`<strong>${r.noIdOrders.length}</strong> order${r.noIdOrders.length!==1?'s':''} skipped (no Shopify Id)`);
+    if(market==='my'){if(r.onlyPlat.length)parts.push(`<strong>${r.onlyPlat.length} order${r.onlyPlat.length!==1?'s':''} only in platforms</strong>`);}
+    else{const oLbl=isMkt?(r.label+' side'):'Platforms';if(r.onlySho.length)parts.push(`<strong>${r.onlySho.length} order${r.onlySho.length!==1?'s':''} only in ${oLbl}</strong>`);}
     bannerText.innerHTML=parts.join(', ')+' — review the details below.';
   }
 
@@ -1362,11 +1756,18 @@ function renderDashboard(r,market){
 
   // Tiles
   const el=document.getElementById('tiles');el.innerHTML='';
-  if(market==='ph'){
+  if(isMkt){
     el.appendChild(makeGroup('good','Matched','SKU and quantity correctly synced on both sides',[makeTile({label:'QTY Match',val:r.match.length,cls:'green',key:'match'})]));
-    el.appendChild(makeGroup('sku','SKU Level','Same order on both sides, but specific SKUs or quantities differ',[makeTile({label:'QTY Mismatch',val:r.mismatch.length,cls:'red',key:'mismatch'}),makeTile({label:'Missing from Inspire',val:r.missing.length,cls:'red',key:'missing'}),makeTile({label:'Extra in Inspire',val:r.extra.length,cls:'amber',key:'extra'})]));
-    el.appendChild(makeGroup('order','Order Level','Entire order missing from one side completely',[makeTile({label:'Only in Shopify',val:r.onlySho.length,cls:'blue',key:'onlySho'}),makeTile({label:'Only in Inspire',val:r.onlyIns.length,cls:'purple',key:'onlyIns'})]));
-    el.appendChild(makeGroup('excl','Excluded','Orders not included in this audit',[makeTile({label:'Refunded (excl.)',val:r.refunded.length,cls:'amber',key:'refunded'}),makeTile({label:'Tag Excluded (excl.)',val:(r.tagExcluded||[]).length,cls:'amber',key:'tagExcluded'}),makeTile({label:'Risk Excluded (excl.)',val:(r.riskExcluded||[]).length,cls:'amber',key:'riskExcluded'})]));
+    el.appendChild(makeGroup('sku','SKU Level','Same order on both sides, but specific SKUs or quantities differ',[makeTile({label:'QTY Mismatch',val:r.mismatch.length,cls:'red',key:'mismatch'}),makeTile({label:'Missing from Fusion',val:r.missing.length,cls:'red',key:'missing'}),makeTile({label:'Extra in Fusion',val:r.extra.length,cls:'amber',key:'extra'}),...(r.shortPicks&&r.shortPicks.length?[makeTile({label:'Short Picks (Fusion)',val:r.shortPicks.length,cls:'amber',key:'shortPicks'})]:[])]));
+    el.appendChild(makeGroup('order','Order Level','Entire order missing from one side completely',[makeTile({label:'Only in '+r.label,val:r.onlySho.length,cls:'blue',key:'onlySho'}),makeTile({label:'Only in Fusion',val:r.onlyIns.length,cls:'purple',key:'onlyIns'})]));
+    el.appendChild(makeGroup('excl','Excluded',r.label+' order status excluded from this audit',[makeTile({label:'Status Excluded (excl.)',val:r.statusExcludedCount||0,cls:'amber',key:'statusExcluded'})]));
+    showView('mismatch');
+  } else if(market==='ph'){
+    el.appendChild(makeGroup('good','Matched','SKU and quantity correctly synced on both sides',[makeTile({label:'QTY Match',val:r.match.length,cls:'green',key:'match'})]));
+    el.appendChild(makeGroup('sku','SKU Level','Same order on both sides, but specific SKUs or quantities differ',[makeTile({label:'QTY Mismatch',val:r.mismatch.length,cls:'red',key:'mismatch'}),makeTile({label:'Missing from Fusion',val:r.missing.length,cls:'red',key:'missing'}),makeTile({label:'Extra in Fusion',val:r.extra.length,cls:'amber',key:'extra'}),...(r.editedItems&&r.editedItems.length?[makeTile({label:'Edited Items (review)',val:r.editedItems.length,cls:'amber',key:'editedItems'})]:[]),...(r.shortPicks&&r.shortPicks.length?[makeTile({label:'Short Picks (Fusion)',val:r.shortPicks.length,cls:'amber',key:'shortPicks'})]:[])]));
+    el.appendChild(makeGroup('order','Order Level','Entire order missing from one side completely',[makeTile({label:'Only in Platforms',val:r.onlySho.length,cls:'blue',key:'onlySho'}),makeTile({label:'Only in Fusion',val:r.onlyIns.length,cls:'purple',key:'onlyIns'})]));
+    el.appendChild(makeGroup('fsync','Fulfillment Sync','Shopify fulfillment status vs Fusion pick list presence',[makeTile({label:'Fulfilled · No Pick List',val:(r.fulfilNoPick||[]).length,cls:'red',key:'fulfilNoPick'}),makeTile({label:'Picked · Not Fulfilled',val:(r.pickedNotFulfil||[]).length,cls:'amber',key:'pickedNotFulfil'})]));
+    el.appendChild(makeGroup('excl','Excluded','Orders not included in this audit',[makeTile({label:'Refunded (excl.)',val:r.refunded.length,cls:'amber',key:'refunded'}),makeTile({label:'Tag Excluded (excl.)',val:(r.tagExcluded||[]).length,cls:'amber',key:'tagExcluded'}),makeTile({label:'Risk Excluded (excl.)',val:(r.riskExcluded||[]).length,cls:'amber',key:'riskExcluded'}),...(r.mktStatusExcludedCount?[makeTile({label:'Marketplace Status (excl.)',val:r.mktStatusExcludedCount,cls:'amber',key:'mktStatusExcluded'})]:[])]));
     showView('mismatch');
   } else {
     el.appendChild(makeGroup('good','Matched','SKU and quantity correctly synced on both sides',[makeTile({label:'QTY Match',val:r.match.length,cls:'green',key:'match'})]));
@@ -1392,18 +1793,33 @@ function isNewRow(key,type){
   }catch{return false;}
 }
 function renderTable(){
-  const r=curMarket==='ph'?state.ph.results:state.my.results;
+  const r=state[curMarket].results;
   const isPH=curMarket==='ph';
-  const V=isPH?{
-    match:   {title:'✅ QTY Match',           cols:['Order','Shopify SKU','Inspire SKU','QTY'],rows:r.match.map(d=>[d.order,d.shopifySku,d.inspireSku,d.sq])},
-    mismatch:{title:'❌ QTY Mismatch',         cols:['Order','Shopify SKU','Inspire SKU','Shopify QTY','Inspire QTY','Diff','Remark'],rows:r.mismatch.map(d=>[d.order,d.shopifySku,d.inspireSku,d.sq,d.iq,d.diff,d.remark])},
-    missing: {title:'🔴 Missing from Inspire', cols:['Order','Shopify SKU','Shopify QTY','Issue'],rows:r.missing.map(d=>[d.order,d.shopifySku,d.sq,d.issue])},
-    extra:   {title:'🟡 Extra in Inspire',     cols:['Order','Inspire SKU','Inspire QTY','Note'],rows:r.extra.map(d=>[d.order,d.inspireSku,d.iq,d.note])},
-    onlySho: {title:'📋 Only in Shopify',      cols:['Order','SKUs','# SKUs'],rows:r.onlyShoRows.map(d=>[d.order,d.skus,d.totalSkus])},
-    onlyIns: {title:'📋 Only in Inspire',      cols:['Order','Note'],rows:r.onlyIns.map(n=>[n,'No matching platform order'])},
+  const isMkt=r&&r.type==='mkt';
+  const V=isMkt?{
+    match:   {title:'✅ QTY Match',cols:['Order / Invoice',r.label+' SKU','Fusion SKU','QTY'],rows:r.match.map(d=>[d.order,d.shopifySku,d.inspireSku,d.sq])},
+    mismatch:{title:'❌ QTY Mismatch',cols:['Order / Invoice',r.label+' SKU','Fusion SKU',r.label+' QTY','Fusion QTY','Diff','Remark'],rows:r.mismatch.map(d=>[d.order,d.shopifySku,d.inspireSku,d.sq,d.iq,d.diff,d.remark])},
+    missing: {title:'🔴 Missing from Fusion',cols:['Order / Invoice',r.label+' SKU',r.label+' QTY','Issue'],rows:r.missing.map(d=>[d.order,d.shopifySku,d.sq,d.issue])},
+    extra:   {title:'🟡 Extra in Fusion',cols:['Order / Invoice','Fusion SKU','Fusion QTY','Note'],rows:r.extra.map(d=>[d.order,d.inspireSku,d.iq,d.note])},
+    onlySho: {title:'📋 Only in '+r.label,cols:['Order / Invoice','SKUs','# SKUs'],rows:r.onlyShoRows.map(d=>[d.order,d.skus,d.totalSkus])},
+    onlyIns: {title:'📋 Only in Fusion',cols:['Invoice No','Note'],rows:r.onlyIns.map(n=>[n,'No matching '+r.label+' order'])},
+    shortPicks:{title:'⚠️ Short Picks (Fusion)',cols:['Order / Invoice','SKU','To Pick','Picked','Reason'],rows:(r.shortPicks||[]).map(d=>[d.order,d.sku,d.toPick,d.picked,d.reason||''])},
+    statusExcluded:{title:'🚫 Status Excluded',cols:['Order / Invoice','Status','Note'],rows:(r.statusExcluded||[]).map(d=>[d.order,d.status,d.note])},
+  }:isPH?{
+    match:   {title:'✅ QTY Match',           cols:['Platform','Order','Invoice No','Platform SKU','Fusion SKU','QTY'],rows:r.match.map(d=>[d.platform||'',d.order,d.inv||'',d.shopifySku,d.inspireSku,d.sq])},
+    mismatch:{title:'❌ QTY Mismatch',         cols:['Platform','Order','Invoice No','Platform SKU','Fusion SKU','Order QTY','Fusion QTY','Diff','Remark'],rows:r.mismatch.map(d=>[d.platform||'',d.order,d.inv||'',d.shopifySku,d.inspireSku,d.sq,d.iq,d.diff,d.remark])},
+    missing: {title:'🔴 Missing from Fusion', cols:['Platform','Order','Invoice No','Platform SKU','Order QTY','Issue'],rows:r.missing.map(d=>[d.platform||'',d.order,d.inv||'',d.shopifySku,d.sq,d.issue])},
+    extra:   {title:'🟡 Extra in Fusion',     cols:['Platform','Order','Invoice No','Fusion SKU','Fusion QTY','Note'],rows:r.extra.map(d=>[d.platform||'',d.order,d.inv||'',d.inspireSku,d.iq,d.note])},
+    onlySho: {title:'📋 Only in Platforms',     cols:['Platform','Order','Invoice No','Fulfillment','SKUs','# SKUs'],rows:r.onlyShoRows.map(d=>[d.platform||'',d.order,d.inv||'',d.fulfil||'',d.skus,d.totalSkus])},
+    onlyIns: {title:'📋 Only in Fusion',      cols:['Platform','Invoice No','Note'],rows:(r.onlyInsRows||[]).map(d=>[d.platform||'',d.inv,'No matching platform order'])},
+    shortPicks:{title:'⚠️ Short Picks (Fusion)',cols:['Order','Invoice No','SKU','To Pick','Picked','Reason'],rows:(r.shortPicks||[]).map(d=>[d.order,d.inv||'',d.sku,d.toPick,d.picked,d.reason||''])},
+    editedItems:{title:'✏️ Edited Items (review)',cols:['Platform','Order','Invoice No','Platform SKU','Fusion SKU','Fusion Picked','Note'],rows:(r.editedItems||[]).map(d=>[d.platform||'',d.order,d.inv||'',d.shopifySku,d.fusionSku,d.iq==null?'':d.iq,d.note])},
+    fulfilNoPick:{title:'🚨 Fulfilled · No Pick List',cols:['Order','Invoice No','Shopify Fulfillment','Note'],rows:(r.fulfilNoPick||[]).map(d=>[d.order,d.inv||'',d.status,d.note])},
+    pickedNotFulfil:{title:'⏳ Picked · Not Fulfilled',cols:['Order','Invoice No','Shopify Fulfillment','Note'],rows:(r.pickedNotFulfil||[]).map(d=>[d.order,d.inv||'',d.status,d.note])},
     refunded:{title:'🚫 Refunded (Excluded)',  cols:['Order','Note'],rows:r.refunded.map(n=>[n,'Excluded — refunded'])},
     tagExcluded:{title:'🏷️ Tag Excluded',cols:['Order','Matched Tag','Note'],rows:(r.tagExcluded||[]).map(n=>[n,(r.tagExcludedLabels&&r.tagExcludedLabels[n])||'','Excluded — matched order tag'])},
     riskExcluded:{title:'⚠️ Risk Excluded',cols:['Order','Risk Level','Note'],rows:(r.riskExcluded||[]).map(n=>[n,(r.riskExcludedLabels&&r.riskExcludedLabels[n])||'','Excluded — risk level'])},
+    mktStatusExcluded:{title:'🚫 Marketplace Status Excluded',cols:['Platform','Order','Status','Note'],rows:(r.mktStatusExcluded||[]).map(d=>[d.platform,d.order,d.status,d.note])},
   }:{
     match:   {title:'✅ QTY Match',         cols:['Platform','Order','NJV Status','SKU','QTY'],rows:r.match.map(d=>[d.platform,d.order,(r.njvStatus&&r.njvStatus[d.order])||'',d.platformSku,d.platformQty])},
     mismatch:{title:'❌ QTY Mismatch',       cols:['Platform','Order','NJV Status','SKU','Platform QTY','NJV QTY','Diff','Remark'],rows:r.mismatch.map(d=>[d.platform,d.order,(r.njvStatus&&r.njvStatus[d.order])||'',d.platformSku,d.platformQty,d.njvQty,d.diff,d.remark])},
@@ -1425,7 +1841,7 @@ function renderTable(){
   const paged=filtered.slice((curPage-1)*PAGE,curPage*PAGE);
   if(!filtered.length){wrap.innerHTML=`<div class="empty-state">No items in this category</div>`;return;}
   const isMM=curView==='mismatch';
-  const diffColIdx=isMM?(isPH?5:4):-1;
+  const diffColIdx=isMM?(isMkt?5:isPH?7:4):-1;
   wrap.innerHTML=`
     <div class="table-toolbar">
       <div class="table-title-txt">${filtered.length} item${filtered.length!==1?'s':''}</div>
@@ -1436,11 +1852,12 @@ function renderTable(){
     <table>
       <thead><tr>${v.cols.map(c=>`<th>${c}</th>`).join('')}</tr></thead>
       <tbody>${paged.map((row,ri)=>{
-        // Check if this row is new vs last run
+        // Check if this row is new vs last run (column offset differs: PH prepends Platform)
         let rowKey='',rowType='';
-        if(curView==='mismatch'){rowKey=row[1]+'|'+row[2]+'|'+row[3];rowType='mismatch';}
-        else if(curView==='missing'){rowKey=row[1]+'|'+row[2];rowType='missing';}
-        else if(curView==='extra'){rowKey=row[1]+'|'+row[2];rowType='extra';}
+        const o=(isPH&&!isMkt)?1:0; // PH tables have a leading Platform column
+        if(curView==='mismatch'){rowKey=row[1+o]+'|'+row[2+o]+'|'+row[3+o];rowType='mismatch';}
+        else if(curView==='missing'){rowKey=row[1+o]+'|'+row[2+o];rowType='missing';}
+        else if(curView==='extra'){rowKey=row[1+o]+'|'+row[2+o];rowType='extra';}
         const isNew=rowKey&&isNewRow(rowKey,rowType);
         return `<tr>${row.map((cell,i)=>{
         if(i===diffColIdx){const n=Number(cell);return`<td class="${n<0?'diff-less':'diff-more'}">${n>0?'+'+n:n}</td>`;}
@@ -1457,15 +1874,29 @@ function renderTable(){
 
 // ══ EXPORT ════════════════════════════════════════════════════════
 function exportView(){
-  const r=curMarket==='ph'?state.ph.results:state.my.results;
+  const r=state[curMarket].results;
   const isPH=curMarket==='ph';
-  const V=isPH?{
-    match:   {n:'QTY_Match',   c:['Order','Shopify SKU','Inspire SKU','QTY'],d:r.match.map(d=>[d.order,d.shopifySku,d.inspireSku,d.sq])},
-    mismatch:{n:'QTY_Mismatch',c:['Order','Shopify SKU','Inspire SKU','Shopify QTY','Inspire QTY','Diff','Remark'],d:r.mismatch.map(d=>[d.order,d.shopifySku,d.inspireSku,d.sq,d.iq,d.diff,d.remark])},
-    missing: {n:'Missing',     c:['Order','Shopify SKU','Shopify QTY','Issue'],d:r.missing.map(d=>[d.order,d.shopifySku,d.sq,d.issue])},
-    extra:   {n:'Extra',       c:['Order','Inspire SKU','Inspire QTY','Note'],d:r.extra.map(d=>[d.order,d.inspireSku,d.iq,d.note])},
-    onlySho: {n:'Only_Shopify',c:['Order','SKUs','# SKUs'],d:r.onlyShoRows.map(d=>[d.order,d.skus,d.totalSkus])},
-    onlyIns: {n:'Only_Inspire',c:['Order','Note'],d:r.onlyIns.map(n=>[n,'No matching order'])},
+  const isMkt=r&&r.type==='mkt';
+  const V=isMkt?{
+    match:   {n:'QTY_Match',   c:['Order/Invoice',r.label+' SKU','Fusion SKU','QTY'],d:r.match.map(d=>[d.order,d.shopifySku,d.inspireSku,d.sq])},
+    mismatch:{n:'QTY_Mismatch',c:['Order/Invoice',r.label+' SKU','Fusion SKU',r.label+' QTY','Fusion QTY','Diff','Remark'],d:r.mismatch.map(d=>[d.order,d.shopifySku,d.inspireSku,d.sq,d.iq,d.diff,d.remark])},
+    missing: {n:'Missing',     c:['Order/Invoice',r.label+' SKU',r.label+' QTY','Issue'],d:r.missing.map(d=>[d.order,d.shopifySku,d.sq,d.issue])},
+    extra:   {n:'Extra',       c:['Order/Invoice','Fusion SKU','Fusion QTY','Note'],d:r.extra.map(d=>[d.order,d.inspireSku,d.iq,d.note])},
+    onlySho: {n:'Only_'+r.label,c:['Order/Invoice','SKUs','# SKUs'],d:r.onlyShoRows.map(d=>[d.order,d.skus,d.totalSkus])},
+    onlyIns: {n:'Only_Fusion',c:['Platform','Invoice No','Note'],d:(r.onlyInsRows||[]).map(d=>[d.platform||'',d.inv,'No matching order'])},
+    shortPicks:{n:'Short_Picks',c:['Order/Invoice','SKU','To Pick','Picked','Reason'],d:(r.shortPicks||[]).map(d=>[d.order,d.sku,d.toPick,d.picked,d.reason||''])},
+    statusExcluded:{n:'Status_Excluded',c:['Order/Invoice','Status','Note'],d:(r.statusExcluded||[]).map(d=>[d.order,d.status,d.note])},
+  }:isPH?{
+    match:   {n:'QTY_Match',   c:['Platform','Order','Invoice No','Platform SKU','Fusion SKU','QTY'],d:r.match.map(d=>[d.platform||'',d.order,d.inv||'',d.shopifySku,d.inspireSku,d.sq])},
+    mismatch:{n:'QTY_Mismatch',c:['Platform','Order','Invoice No','Platform SKU','Fusion SKU','Order QTY','Fusion QTY','Diff','Remark'],d:r.mismatch.map(d=>[d.platform||'',d.order,d.inv||'',d.shopifySku,d.inspireSku,d.sq,d.iq,d.diff,d.remark])},
+    missing: {n:'Missing',     c:['Platform','Order','Invoice No','Platform SKU','Order QTY','Issue'],d:r.missing.map(d=>[d.platform||'',d.order,d.inv||'',d.shopifySku,d.sq,d.issue])},
+    extra:   {n:'Extra',       c:['Platform','Order','Invoice No','Fusion SKU','Fusion QTY','Note'],d:r.extra.map(d=>[d.platform||'',d.order,d.inv||'',d.inspireSku,d.iq,d.note])},
+    onlySho: {n:'Only_Platform',c:['Platform','Order','Invoice No','Fulfillment','SKUs','# SKUs'],d:r.onlyShoRows.map(d=>[d.platform||'',d.order,d.inv||'',d.fulfil||'',d.skus,d.totalSkus])},
+    onlyIns: {n:'Only_Fusion',c:['Platform','Invoice No','Note'],d:(r.onlyInsRows||[]).map(d=>[d.platform||'',d.inv,'No matching order'])},
+    shortPicks:{n:'Short_Picks',c:['Order','Invoice No','SKU','To Pick','Picked','Reason'],d:(r.shortPicks||[]).map(d=>[d.order,d.inv||'',d.sku,d.toPick,d.picked,d.reason||''])},
+    editedItems:{n:'Edited_Items',c:['Order','Invoice No','Shopify SKU','Fusion SKU','Fusion Picked','Note'],d:(r.editedItems||[]).map(d=>[d.order,d.inv||'',d.shopifySku,d.fusionSku,d.iq==null?'':d.iq,d.note])},
+    fulfilNoPick:{n:'Fulfilled_No_PickList',c:['Order','Invoice No','Shopify Fulfillment','Note'],d:(r.fulfilNoPick||[]).map(d=>[d.order,d.inv||'',d.status,d.note])},
+    pickedNotFulfil:{n:'Picked_Not_Fulfilled',c:['Order','Invoice No','Shopify Fulfillment','Note'],d:(r.pickedNotFulfil||[]).map(d=>[d.order,d.inv||'',d.status,d.note])},
     refunded:{n:'Refunded',    c:['Order','Note'],d:r.refunded.map(n=>[n,'Excluded'])},
   }:{
     match:   {n:'QTY_Match',    c:['Platform','Order','SKU','QTY'],d:r.match.map(d=>[d.platform,d.order,d.platformSku,d.platformQty])},
@@ -1484,18 +1915,34 @@ function exportView(){
 function exportFullReport(){
   const mkt=curMarket,r=state[mkt].results;if(!r)return;
   const isPH=mkt==='ph';
+  const isMkt=r&&r.type==='mkt';
   const wb=XLSX.utils.book_new();
-  const sheets=isPH?[
-    {n:'Summary',d:[['Metric','Value'],['Shopify Total',r.shoTotal],['Refunded Excluded',r.refunded.length],['Active Shopify',r.shoActive],['Inspire Total',r.insTotal],['Orders in Both',r.common],['Missing from Inspire',r.missing.length],['Extra in Inspire',r.extra.length],['QTY Mismatch',r.mismatch.length],['QTY Match',r.match.length],['Only Shopify',r.onlySho.length],['Only Inspire',r.onlyIns.length]]},
-    {n:'Missing from Inspire',d:[['Order','Shopify SKU','Shopify QTY','Issue'],...r.missing.map(d=>[d.order,d.shopifySku,d.sq,d.issue])]},
-    {n:'Extra in Inspire',d:[['Order','Inspire SKU','Inspire QTY','Note'],...r.extra.map(d=>[d.order,d.inspireSku,d.iq,d.note])]},
-    {n:'QTY Mismatch',d:[['Order','Shopify SKU','Inspire SKU','Shopify QTY','Inspire QTY','Diff','Remark'],...r.mismatch.map(d=>[d.order,d.shopifySku,d.inspireSku,d.sq,d.iq,d.diff,d.remark])]},
-    {n:'QTY Match',d:[['Order','Shopify SKU','Inspire SKU','QTY'],...r.match.map(d=>[d.order,d.shopifySku,d.inspireSku,d.sq])]},
-    {n:'Only in Shopify',d:[['Order','SKU','QTY'],...r.onlyShoRows.map(d=>[d.order,d.sku,d.qty])]},
-    {n:'Only in Inspire',d:[['Order','Note'],...r.onlyIns.map(n=>[n,'No matching order'])]},
+  const sheets=isMkt?[
+    {n:'Summary',d:[['Metric','Value'],[r.label+' Total',r.shoTotal],['Status Excluded',r.statusExcludedCount||0],[r.label+' Active',r.shoActive],['Fusion Total',r.insTotal],['Orders in Both',r.common],['Missing from Fusion',r.missing.length],['Extra in Fusion',r.extra.length],['QTY Mismatch',r.mismatch.length],['QTY Match',r.match.length],['Only '+r.label,r.onlySho.length],['Only Fusion',r.onlyIns.length]]},
+    {n:'QTY Match',d:[['Order/Invoice',r.label+' SKU','Fusion SKU','QTY'],...r.match.map(d=>[d.order,d.shopifySku,d.inspireSku,d.sq])]},
+    {n:'QTY Mismatch',d:[['Order/Invoice',r.label+' SKU','Fusion SKU',r.label+' QTY','Fusion QTY','Diff','Remark'],...r.mismatch.map(d=>[d.order,d.shopifySku,d.inspireSku,d.sq,d.iq,d.diff,d.remark])]},
+    {n:'Missing from Fusion',d:[['Order/Invoice',r.label+' SKU',r.label+' QTY','Issue'],...r.missing.map(d=>[d.order,d.shopifySku,d.sq,d.issue])]},
+    {n:'Extra in Fusion',d:[['Order/Invoice','Fusion SKU','Fusion QTY','Note'],...r.extra.map(d=>[d.order,d.inspireSku,d.iq,d.note])]},
+    {n:'Only in '+r.label,d:[['Order/Invoice','SKUs','# SKUs'],...r.onlyShoRows.map(d=>[d.order,d.skus,d.totalSkus])]},
+    {n:'Only in Fusion',d:[['Platform','Invoice No','Note'],...(r.onlyInsRows||[]).map(d=>[d.platform||'',d.inv,'No matching order'])]},
+    {n:'Short Picks',d:[['Order/Invoice','SKU','To Pick','Picked','Reason'],...(r.shortPicks||[]).map(d=>[d.order,d.sku,d.toPick,d.picked,d.reason||''])]},
+    {n:'Status Excluded',d:[['Order/Invoice','Status','Note'],...(r.statusExcluded||[]).map(d=>[d.order,d.status,d.note])]},
+  ]:isPH?[
+    {n:'Summary',d:[['Metric','Value'],['Shopify Total',r.shoTotal],['Refunded Excluded',r.refunded.length],['Active Shopify',r.shoActive],['Fusion Total',r.insTotal],['Orders in Both',r.common],['Missing from Fusion',r.missing.length],['Extra in Fusion',r.extra.length],['QTY Mismatch',r.mismatch.length],['QTY Match',r.match.length],['Only Platform',r.onlySho.length],['Only Fusion',r.onlyIns.length],['Edited Items (review)',(r.editedItems||[]).length],['Marketplace Status Excluded',(r.mktStatusExcludedCount||0)],['Fulfilled No PickList',(r.fulfilNoPick||[]).length],['Picked Not Fulfilled',(r.pickedNotFulfil||[]).length]]},
+    {n:'Missing from Fusion',d:[['Platform','Order','Invoice No','Platform SKU','Order QTY','Issue'],...r.missing.map(d=>[d.platform||'',d.order,d.inv||'',d.shopifySku,d.sq,d.issue])]},
+    {n:'Extra in Fusion',d:[['Platform','Order','Invoice No','Fusion SKU','Fusion QTY','Note'],...r.extra.map(d=>[d.platform||'',d.order,d.inv||'',d.inspireSku,d.iq,d.note])]},
+    {n:'QTY Mismatch',d:[['Platform','Order','Invoice No','Platform SKU','Fusion SKU','Order QTY','Fusion QTY','Diff','Remark'],...r.mismatch.map(d=>[d.platform||'',d.order,d.inv||'',d.shopifySku,d.inspireSku,d.sq,d.iq,d.diff,d.remark])]},
+    {n:'QTY Match',d:[['Platform','Order','Invoice No','Platform SKU','Fusion SKU','QTY'],...r.match.map(d=>[d.platform||'',d.order,d.inv||'',d.shopifySku,d.inspireSku,d.sq])]},
+    {n:'Only in Platforms',d:[['Platform','Order','Invoice No','Fulfillment','SKUs','# SKUs'],...r.onlyShoRows.map(d=>[d.platform||'',d.order,d.inv||'',d.fulfil||'',d.skus,d.totalSkus])]},
+    {n:'Only in Fusion',d:[['Platform','Invoice No','Note'],...(r.onlyInsRows||[]).map(d=>[d.platform||'',d.inv,'No matching order'])]},
+    {n:'Short Picks',d:[['Order','Invoice No','SKU','To Pick','Picked','Reason'],...(r.shortPicks||[]).map(d=>[d.order,d.inv||'',d.sku,d.toPick,d.picked,d.reason||''])]},
+    {n:'Edited Items',d:[['Platform','Order','Invoice No','Platform SKU','Fusion SKU','Fusion Picked','Note'],...(r.editedItems||[]).map(d=>[d.platform||'',d.order,d.inv||'',d.shopifySku,d.fusionSku,d.iq==null?'':d.iq,d.note])]},
+    {n:'Fulfilled No PickList',d:[['Order','Invoice No','Shopify Fulfillment','Note'],...(r.fulfilNoPick||[]).map(d=>[d.order,d.inv||'',d.status,d.note])]},
+    {n:'Picked Not Fulfilled',d:[['Order','Invoice No','Shopify Fulfillment','Note'],...(r.pickedNotFulfil||[]).map(d=>[d.order,d.inv||'',d.status,d.note])]},
     {n:'Refunded',d:[['Order','Note'],...r.refunded.map(n=>[n,'Excluded'])]},
     {n:'Tag Excluded',d:[['Order','Note'],...(r.tagExcluded||[]).map(n=>[n,'Tag excluded'])]},
     {n:'Risk Excluded',d:[['Order','Risk Level'],...(r.riskExcluded||[]).map(n=>[n,(r.riskExcludedLabels&&r.riskExcludedLabels[n])||''])]},
+    {n:'Marketplace Status Excl',d:[['Platform','Order','Status','Note'],...(r.mktStatusExcluded||[]).map(d=>[d.platform,d.order,d.status,d.note])]},
   ]:[
     {n:'Summary',d:[['Metric','Value'],['Platform Total',r.platTotal],['Cancelled Excluded',r.excludedCount],['Active Platform Orders',r.platActive],['NJV Total Orders',r.njvTotal],['Orders in Both',r.common],['Missing from NJV',r.missing.length],['Extra in NJV',r.extra.length],['QTY Mismatch',r.mismatch.length],['QTY Match',r.match.length],['Only in Platforms',r.onlyPlat.length],['Only in NJV',r.onlyNJV.length]]},
     {n:'Missing from NJV',d:[['Order','Platform SKU','Platform QTY','Issue'],...r.missing.map(d=>[d.order,d.platformSku,d.platformQty,d.issue])]},
@@ -1611,7 +2058,7 @@ function toggleDark(){
 
 function toast(msg,err){const el=document.getElementById('toast');el.textContent=msg;el.style.borderColor=err?'var(--red-bd)':'var(--green-bd)';el.style.color=err?'var(--red)':'var(--green)';el.classList.add('show');setTimeout(()=>el.classList.remove('show'),2500);}
 
-loadRulesFromFirestore();
+// Rules now load after sign-in (see onAuthStateChanged).
 // Restore last results and dark mode after all functions are defined
 (function(){
   // Dark mode

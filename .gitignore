@@ -1,0 +1,10 @@
+# Confidential seed / settings data — never commit
+*-seed.json
+*seed*.json
+*-settings.json
+*-seeder.html
+_private*
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db
