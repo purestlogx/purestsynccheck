@@ -326,7 +326,7 @@ body:not(.admin-unlocked) .tag-remove{display:none!important;}
 </div>
 
 <nav>
-  <div class="nav-logo">Purest Nest <span>Sync Check</span> <span style="font-size:10px;opacity:.4;font-weight:400">v6.4</span></div>
+  <div class="nav-logo">Purest Nest <span>Sync Check</span> <span style="font-size:10px;opacity:.4;font-weight:400">v6.5</span></div>
   <div style="display:flex;align-items:center;gap:8px;">
     <button id="dark-toggle" onclick="toggleDark()" style="padding:5px 10px;border-radius:6px;border:1px solid var(--border);background:transparent;cursor:pointer;font-size:14px;" title="Toggle dark mode">🌙</button>
     <span id="user-email"></span>
@@ -1184,6 +1184,8 @@ function runMY(){runWithProgress('my',compareMY);}
 // ══ PH COMPARISON ════════════════════════════════════════════════
 const BUNDLE_PFX=['PN-BUNDLE-','PN-BU-','PN-VB-','PN-HB-'];
 function skuToken(sku){for(const p of['PN-SB-','PN-ES-','PN-FB-','PN-ME-'])if(sku.startsWith(p))return sku.slice(p.length).replace(/-/g,'');return null;}
+// Order creation date: pull the YYYY-MM-DD out of a Shopify "Created at" value (e.g. "2026-07-15 19:47:03 +0800")
+function fmtOD(s){const m=String(s||'').match(/\d{4}-\d{2}-\d{2}/);return m?m[0]:String(s||'').trim();}
 function decodePfxBundle(sku,tMap){if(PH_RULES.mixedSet.includes(sku))return null;for(const p of BUNDLE_PFX)if(sku.startsWith(p))return sku.slice(p.length).split(/[+\-x]/).map(t=>tMap[t]).filter(Boolean);return null;}
 function decodeMulti(sku){if(PH_RULES.standalone.includes(sku))return null;const cu=PH_RULES.multiUnit.find(r=>r.sku===sku);if(cu)return{mother:cu.mother,n:+cu.mult};const mES=sku.match(/^(PN-ES-\w+)-(\d+)$/);if(mES&&+mES[2]>1)return{mother:mES[1]+'-1',n:+mES[2]};const mSB90=sku.match(/^(PN-SB-\w+)-90$/);if(mSB90)return{mother:mSB90[1]+'-30',n:3};const mSB60=sku.match(/^(PN-SB-\w+)-60$/);if(mSB60)return{mother:mSB60[1]+'-30',n:2};return null;}
 function classifyPH(sku){if(BUNDLE_PFX.some(p=>sku.startsWith(p)))return PH_RULES.mixedSet.includes(sku)?'standalone':'bundle';if(PH_RULES.standalone.includes(sku))return'standalone';if(decodeMulti(sku))return'multi';return'standalone';}
@@ -1391,7 +1393,9 @@ function comparePH(){
     else if(st==='unfulfilled'&&inPick)pickedNotFulfil.push({order:name,inv:isFusion?k:'',status:st,note:'Pick list exists but Shopify still unfulfilled — fulfillment sync lag'});
   }
   fulfilNoPick.sort((a,b)=>a.order<b.order?-1:1);pickedNotFulfil.sort((a,b)=>a.order<b.order?-1:1);
-  return{type:'ph',isFusion,shortPicks,editedItems,fulfilNoPick,pickedNotFulfil,noIdOrders:[...noIdSet].sort(),refunded:[...refunded].sort(),tagExcluded:[...tagExcludedPH].sort(),tagExcludedLabels:Object.fromEntries(phTagExcludedMap),riskExcluded:[...riskExcludedPH].sort(),riskExcludedLabels:Object.fromEntries(phRiskExcludedMap),shoTotal:shoNames.size+allExcluded.size,shoActive:shoNames.size,insTotal:insNames.size,common:common.length,onlySho:onlySho.map(disp),onlyIns,onlyInsRows,onlyShoRows,mktStatusExcluded,mktStatusExcludedCount:mktStatusExcluded.length,platformOf,fusionPlatform,missing,extra,match,mismatch};
+  const orderDate={};
+  shopifyPHData.forEach(rw=>{const nm=fName(rw);if(!nm||orderDate[nm])return;const dv=String(sf(rw,['Created at','Created At'])).trim();if(dv)orderDate[nm]=fmtOD(dv);});
+  return{type:'ph',orderDate,isFusion,shortPicks,editedItems,fulfilNoPick,pickedNotFulfil,noIdOrders:[...noIdSet].sort(),refunded:[...refunded].sort(),tagExcluded:[...tagExcludedPH].sort(),tagExcludedLabels:Object.fromEntries(phTagExcludedMap),riskExcluded:[...riskExcludedPH].sort(),riskExcludedLabels:Object.fromEntries(phRiskExcludedMap),shoTotal:shoNames.size+allExcluded.size,shoActive:shoNames.size,insTotal:insNames.size,common:common.length,onlySho:onlySho.map(disp),onlyIns,onlyInsRows,onlyShoRows,mktStatusExcluded,mktStatusExcludedCount:mktStatusExcluded.length,platformOf,fusionPlatform,missing,extra,match,mismatch};
 }
 
 // ══ PH MARKETPLACE CONFIG ═════════════════════════════════════════
@@ -1683,7 +1687,9 @@ function compareMY(){
   const onlyNJVRows=[];
   for(const n of onlyNJV){const skus=Object.entries(njvMap[n]).map(([s,q])=>`${s} (×${q})`).join(', ');onlyNJVRows.push({order:n,skus,totalSkus:Object.keys(njvMap[n]).length});}
 
-  return{type:'my',excluded,platSource,njvStatus,excludedCount:Object.keys(excluded).length,tagExcludedCount:Object.values(excluded).filter(v=>String(v).startsWith('tag:')).length,riskExcludedCount:Object.values(excluded).filter(v=>String(v).startsWith('risk:')).length,platTotal:platNames.size+Object.keys(excluded).length,platActive:platNames.size,njvTotal:njvNames.size,common:common.length,onlyPlat,onlyNJV,onlyPlatRows,onlyNJVRows,missing,extra,match,mismatch};
+  const orderDate={};
+  shopifyMYData.forEach(rw=>{const nm=String(rw['Name']||'').trim();if(!nm||orderDate[nm])return;const dv=String(rw['Created at']||rw['Created At']||'').trim();if(dv)orderDate[nm]=fmtOD(dv);});
+  return{type:'my',orderDate,excluded,platSource,njvStatus,excludedCount:Object.keys(excluded).length,tagExcludedCount:Object.values(excluded).filter(v=>String(v).startsWith('tag:')).length,riskExcludedCount:Object.values(excluded).filter(v=>String(v).startsWith('risk:')).length,platTotal:platNames.size+Object.keys(excluded).length,platActive:platNames.size,njvTotal:njvNames.size,common:common.length,onlyPlat,onlyNJV,onlyPlatRows,onlyNJVRows,missing,extra,match,mismatch};
 }
 
 // ══ DASHBOARD ═════════════════════════════════════════════════════
@@ -1849,6 +1855,7 @@ function renderTable(){
     riskExcludedMY:{title:'⚠️ Risk Excluded',cols:['Order','Risk Level','Note'],rows:Object.keys(r.excluded||{}).filter(n=>String(r.excluded[n]).startsWith('risk:')).sort().map(n=>[n,(r.excluded[n]||'').replace('risk:',''),'Excluded — risk level'])},
   };
   const v=V[curView];if(!v){document.getElementById('detail-label').textContent='—';document.getElementById('detail-table').innerHTML=`<div class="empty-state">No data</div>`;return;}
+  if(r&&r.orderDate){const oi=v.cols.findIndex(c=>c==='Order'||c==='Order / Invoice');if(oi!==-1){v.cols=[...v.cols,'Order Date'];v.rows=v.rows.map(row=>[...row,r.orderDate[row[oi]]||'']);}}
   document.getElementById('detail-label').textContent=v.title;
   const wrap=document.getElementById('detail-table');
   const q=curSearch.toLowerCase();
@@ -1925,6 +1932,7 @@ function exportView(){
     excl:    {n:'Excluded',     c:['Note'],d:[['Cancelled orders excluded from audit']]},
   };
   const v=V[curView];if(!v)return;
+  if(r&&r.orderDate){const oi=v.c.findIndex(c=>c==='Order'||c==='Order/Invoice');if(oi!==-1){v.c=[...v.c,'Order Date'];v.d=v.d.map(row=>[...row,r.orderDate[row[oi]]||'']);}}
   const csv=[v.c,...v.d].map(row=>row.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
   dlFile(`PurestNestSyncCheck_${curMarket.toUpperCase()}_${v.n}.csv`,csv,'text/csv');
 }
@@ -1969,6 +1977,7 @@ function exportFullReport(){
     {n:'Only in Platforms',d:[['Order','SKU','QTY'],...r.onlyPlatRows.map(d=>[d.order,d.sku,d.qty])]},
     {n:'Only in NJV',d:[['Order','SKU','NJV QTY'],...r.onlyNJVRows.map(d=>[d.order,d.sku,d.qty])]},
   ];
+  if(r.orderDate){sheets.forEach(s=>{const hdr=s.d[0];if(!hdr)return;const oi=hdr.findIndex(c=>c==='Order'||c==='Order/Invoice'||c==='Order / Invoice');if(oi===-1)return;s.d[0]=[...hdr,'Order Date'];for(let i=1;i<s.d.length;i++)s.d[i]=[...s.d[i],r.orderDate[s.d[i][oi]]||''];});}
   sheets.forEach(s=>XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(s.d),s.n.slice(0,31)));
   XLSX.writeFile(wb,`PurestNestSyncCheck_${mkt.toUpperCase()}_${new Date().toISOString().slice(0,10)}.xlsx`);
   toast('Report downloaded ✓');
