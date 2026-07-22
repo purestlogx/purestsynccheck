@@ -294,8 +294,8 @@ body:not(.admin-unlocked) .tag-remove{display:none!important;}
 .login-btn:hover{background:var(--moss-700);}
 .login-btn:disabled{opacity:.6;cursor:not-allowed;}
 .login-error{font-size:12px;color:var(--red);margin-top:12px;min-height:16px;}
-.login-forgot{display:block;margin:14px auto 0;background:none;border:none;color:var(--teal-600);font-family:var(--font-body);font-size:12px;cursor:pointer;text-decoration:underline;}
-.login-forgot:hover{color:var(--purest-teal);}
+.login-forgot{display:inline-block;margin-top:10px;background:none;border:none;padding:0;color:var(--purest-teal);text-decoration:underline;font-family:var(--font-body);font-size:12px;cursor:pointer;}
+.login-forgot:hover{color:var(--moss-700);}
 #logout-btn{padding:5px 12px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--muted);font-family:var(--font-body);font-size:12px;cursor:pointer;transition:all .18s;letter-spacing:.03em;}
 #logout-btn:hover{border-color:var(--red);color:var(--red);}
 #user-email{font-size:12px;color:var(--muted);margin-right:4px;}
@@ -320,13 +320,13 @@ body:not(.admin-unlocked) .tag-remove{display:none!important;}
       <input type="password" id="login-password" autocomplete="current-password" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()"/>
     </div>
     <button class="login-btn" id="login-btn" onclick="doLogin()">Sign In</button>
-    <button type="button" class="login-forgot" id="login-forgot" onclick="doPasswordReset()">Forgot password?</button>
+    <button class="login-forgot" id="login-forgot" onclick="doPasswordReset()">Forgot password?</button>
     <div class="login-error" id="login-error"></div>
   </div>
 </div>
 
 <nav>
-  <div class="nav-logo">Purest Nest <span>Sync Check</span> <span style="font-size:10px;opacity:.4;font-weight:400">v6.5</span></div>
+  <div class="nav-logo">Purest Nest <span>Sync Check</span> <span style="font-size:10px;opacity:.4;font-weight:400">v6.6</span></div>
   <div style="display:flex;align-items:center;gap:8px;">
     <button id="dark-toggle" onclick="toggleDark()" style="padding:5px 10px;border-radius:6px;border:1px solid var(--border);background:transparent;cursor:pointer;font-size:14px;" title="Toggle dark mode">🌙</button>
     <span id="user-email"></span>
@@ -771,7 +771,8 @@ function doLogin(){
   const pw=document.getElementById('login-password').value;
   const errEl=document.getElementById('login-error');
   const btn=document.getElementById('login-btn');
-  errEl.textContent='';errEl.style.color='';
+  errEl.style.color='';
+  errEl.textContent='';
   if(!email||!pw){errEl.textContent='Enter your email and password.';return;}
   if(!auth){errEl.textContent='Authentication service unavailable. Check your connection and reload.';return;}
   btn.disabled=true;btn.textContent='Signing in…';
@@ -785,13 +786,12 @@ function doLogin(){
 function doLogout(){
   if(auth)auth.signOut();
 }
-// ── Self-service password reset (Firebase sends the email; no console access needed) ──
 function doPasswordReset(){
   const email=document.getElementById('login-email').value.trim();
   const errEl=document.getElementById('login-error');
   errEl.style.color='';
   if(!auth){errEl.textContent='Authentication service unavailable. Check your connection and reload.';return;}
-  if(!email){errEl.textContent='Enter your email above first, then click “Forgot password?”.';return;}
+  if(!email){errEl.textContent='Enter your email above first, then click "Forgot password?".';return;}
   auth.sendPasswordResetEmail(email)
     .then(()=>{errEl.style.color='var(--green)';errEl.textContent='Reset link sent to '+email+'. Check your inbox (and spam).';})
     .catch(err=>{
@@ -1183,9 +1183,8 @@ function runMY(){runWithProgress('my',compareMY);}
 
 // ══ PH COMPARISON ════════════════════════════════════════════════
 const BUNDLE_PFX=['PN-BUNDLE-','PN-BU-','PN-VB-','PN-HB-'];
+function normDate(v){if(!v)return '';const s=String(v).trim();const m=s.match(/^(\d{4})-(\d{2})-(\d{2})/);if(m)return m[1]+'-'+m[2]+'-'+m[3];const d=new Date(s);if(!isNaN(d)){const p=n=>String(n).padStart(2,'0');return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate());}return s;}
 function skuToken(sku){for(const p of['PN-SB-','PN-ES-','PN-FB-','PN-ME-'])if(sku.startsWith(p))return sku.slice(p.length).replace(/-/g,'');return null;}
-// Order creation date: pull the YYYY-MM-DD out of a Shopify "Created at" value (e.g. "2026-07-15 19:47:03 +0800")
-function fmtOD(s){const m=String(s||'').match(/\d{4}-\d{2}-\d{2}/);return m?m[0]:String(s||'').trim();}
 function decodePfxBundle(sku,tMap){if(PH_RULES.mixedSet.includes(sku))return null;for(const p of BUNDLE_PFX)if(sku.startsWith(p))return sku.slice(p.length).split(/[+\-x]/).map(t=>tMap[t]).filter(Boolean);return null;}
 function decodeMulti(sku){if(PH_RULES.standalone.includes(sku))return null;const cu=PH_RULES.multiUnit.find(r=>r.sku===sku);if(cu)return{mother:cu.mother,n:+cu.mult};const mES=sku.match(/^(PN-ES-\w+)-(\d+)$/);if(mES&&+mES[2]>1)return{mother:mES[1]+'-1',n:+mES[2]};const mSB90=sku.match(/^(PN-SB-\w+)-90$/);if(mSB90)return{mother:mSB90[1]+'-30',n:3};const mSB60=sku.match(/^(PN-SB-\w+)-60$/);if(mSB60)return{mother:mSB60[1]+'-30',n:2};return null;}
 function classifyPH(sku){if(BUNDLE_PFX.some(p=>sku.startsWith(p)))return PH_RULES.mixedSet.includes(sku)?'standalone':'bundle';if(PH_RULES.standalone.includes(sku))return'standalone';if(decodeMulti(sku))return'multi';return'standalone';}
@@ -1209,6 +1208,7 @@ function comparePH(){
   const fFS=r=>String(sf(r,['Financial Status','Payment status'])).toLowerCase();
   const fSku=r=>String(sf(r,['Lineitem sku','Product variant SKU'])).trim();
   const fQty=r=>+sf(r,['Lineitem quantity','Ordered quantity'])||0;
+  const fDate=r=>normDate(sf(r,['Order created at','Created at']));
   const fTags=r=>String(sf(r,['Tags','Order tags'])||'');
   const fRisk=r=>String(sf(r,['Risk Level'])||'').trim();
   // ── Per-order fulfillment status ──
@@ -1265,7 +1265,7 @@ function comparePH(){
   const keyOf=n=>isFusion?(nameToId[n]||''):n;
   const keyToName={};Object.keys(nameToId).forEach(n=>{keyToName[nameToId[n]]=n;});
   const disp=k=>keyToName[k]||k;
-  const shopRows=shopifyPHData.map(r=>{const fs=fFS(r);if(fs)lastStatus=fs;const tags=fTags(r).split(',').map(t=>t.trim().toLowerCase());return{name:fName(r),status:lastStatus,sku:fSku(r),qty:fQty(r),tags};}).filter(r=>r.name&&r.sku);
+  const shopRows=shopifyPHData.map(r=>{const fs=fFS(r);if(fs)lastStatus=fs;const tags=fTags(r).split(',').map(t=>t.trim().toLowerCase());return{name:fName(r),status:lastStatus,sku:fSku(r),qty:fQty(r),tags,date:fDate(r)};}).filter(r=>r.name&&r.sku);
   const riskExcludedPH=new Set(phRiskExcludedMap.keys());
   const tagExcludedPH=new Set(phTagExcludedMap.keys());
   // Financial status wins over risk/tag — remove overlap
@@ -1275,8 +1275,8 @@ function comparePH(){
   const allExcluded=new Set([...refunded,...riskExcludedPH,...tagExcludedPH]);
   const excludedKeys=new Set([...allExcluded].map(keyOf).filter(Boolean));
   const active=shopRows.filter(r=>!allExcluded.has(r.name));
-  const shoMap={};const noIdSet=new Set();const platformOf={};
-  for(const r of active){const k=keyOf(r.name);if(!k){noIdSet.add(r.name);continue;}if(!shoMap[k])shoMap[k]={};shoMap[k][r.sku]=(shoMap[k][r.sku]||0)+r.qty;if(!platformOf[k])platformOf[k]='Shopify';}
+  const shoMap={};const noIdSet=new Set();const platformOf={};const dateOf={};const pickDateOf={};
+  for(const r of active){const k=keyOf(r.name);if(!k){noIdSet.add(r.name);continue;}if(!shoMap[k])shoMap[k]={};shoMap[k][r.sku]=(shoMap[k][r.sku]||0)+r.qty;if(!platformOf[k])platformOf[k]='Shopify';if(r.date&&!dateOf[k])dateOf[k]=r.date;}
   // ── Merge marketplace platforms (Shopee/Lazada/TikTok): each order ID = Fusion invoice ──
   const mktStatusExcluded=[]; // {order, platform, status, note}
   function ingestMkt(mkt){
@@ -1311,6 +1311,7 @@ function comparePH(){
       const mp=String(fCol(r,/^marketplace$/i)||'').trim().toLowerCase();
       const nm=String(fCol(r,/^invoice number$/i)||'').trim();
       if(nm&&!fusionPlatform[nm]&&mp)fusionPlatform[nm]=mp.charAt(0).toUpperCase()+mp.slice(1);
+      if(nm){const pAt=normDate(fCol(r,/^picked at$/i));if(pAt&&(!pickDateOf[nm]||pAt<pickDateOf[nm]))pickDateOf[nm]=pAt;}
       const sk=String(fCol(r,/^sku$/i)||'').trim();
       const picked=+fCol(r,/^picked quantity$/i)||0;
       const toPick=+fCol(r,/^quantity to pick$/i)||0;
@@ -1337,17 +1338,18 @@ function comparePH(){
   const zeroedSet=new Set(zeroedOnly);
   const onlySho=onlyShoAll.filter(k=>!zeroedSet.has(k));
   const uploadedMps=new Set([['shopify',state.ph.shopify1Data||state.ph.shopify2Data],['shopee',state.ph.shopeeData],['lazada',state.ph.lazadaData],['tiktok',state.ph.tiktokData]].filter(x=>x[1]&&x[1].length).map(x=>x[0]));
+  const plat=key=>platformOf[key]||fusionPlatform[key]||'';
+  const orderDate=key=>dateOf[key]||(pickDateOf[key]?pickDateOf[key]+' (picked)':'');
   const onlyInsKeys=[...insNames].filter(n=>!shoNames.has(n)&&!excludedKeys.has(n)&&!allExcluded.has(n)&&(!fusionPlatform[n]||uploadedMps.has(String(fusionPlatform[n]).toLowerCase()))).sort();
   const onlyIns=onlyInsKeys.map(disp);
-  const onlyInsRows=onlyInsKeys.map(k=>({inv:k,platform:fusionPlatform[k]||''}));
+  const onlyInsRows=onlyInsKeys.map(k=>({inv:k,platform:fusionPlatform[k]||'',date:orderDate(k)}));
   const missing=[],extra=[],match=[],mismatch=[],editedItems=[];
-  for(const k of zeroedOnly){editedItems.push({order:disp(k),inv:isFusion?k:'',platform:platformOf[k]||'',shopifySku:Object.keys(shoMap[k]).join(' + '),fusionSku:'—',iq:'',note:'All lines qty 0 (manually edited order) — no pick list expected'});}
-  const plat=key=>platformOf[key]||fusionPlatform[key]||'';
+  for(const k of zeroedOnly){editedItems.push({order:disp(k),inv:isFusion?k:'',date:orderDate(k),platform:platformOf[k]||'',shopifySku:Object.keys(shoMap[k]).join(' + '),fusionSku:'—',iq:'',note:'All lines qty 0 (manually edited order) — no pick list expected'});}
   const pushMissing=(key,sku,sq,issue)=>{
-    if(sq===0){editedItems.push({order:disp(key),inv:isFusion?key:'',platform:plat(key),shopifySku:sku,fusionSku:'—',iq:'',note:'Qty 0 (manually edited line) and not found in '+srcName+' — verify manually'});return;}
-    missing.push({order:disp(key),inv:isFusion?key:'',platform:plat(key),shopifySku:sku,sq,issue});
+    if(sq===0){editedItems.push({order:disp(key),inv:isFusion?key:'',date:orderDate(key),platform:plat(key),shopifySku:sku,fusionSku:'—',iq:'',note:'Qty 0 (manually edited line) and not found in '+srcName+' — verify manually'});return;}
+    missing.push({order:disp(key),inv:isFusion?key:'',date:orderDate(key),platform:plat(key),shopifySku:sku,sq,issue});
   };
-  function rec(key,shopSku,insSku,sq,iq){const row={order:disp(key),inv:isFusion?key:'',platform:plat(key),shopifySku:shopSku,inspireSku:insSku,sq,iq};if(sq===iq)match.push(row);else mismatch.push({...row,diff:sq-iq,remark:iq>sq?srcName+' has '+(iq-sq)+' more':srcName+' has '+(sq-iq)+' less'});}
+  function rec(key,shopSku,insSku,sq,iq){const row={order:disp(key),inv:isFusion?key:'',date:orderDate(key),platform:plat(key),shopifySku:shopSku,inspireSku:insSku,sq,iq};if(sq===iq)match.push(row);else mismatch.push({...row,diff:sq-iq,remark:iq>sq?srcName+' has '+(iq-sq)+' more':srcName+' has '+(sq-iq)+' less'});}
   for(const key of common.sort()){
     const insD=insMap[key],shoD=shoMap[key],insSet=new Set(Object.keys(insD)),explained=new Set();
     // Aggregate expected qty per resolved 3PL SKU across ALL Shopify lines in the order,
@@ -1377,12 +1379,12 @@ function comparePH(){
       else{if(insSet.has(sku))addExp(sku,sq,sku);else pushMissing(key,sku,sq,'SKU missing from '+srcName);}
     }
     for(const fSku of Object.keys(expected).sort()){
-      if(expected[fSku]===0){editedItems.push({order:disp(key),inv:isFusion?key:'',platform:plat(key),shopifySku:contrib[fSku].join(' + '),fusionSku:fSku,iq:insD[fSku],note:'Export shows qty 0 (manually edited line) — verify quantity manually'});continue;}
+      if(expected[fSku]===0){editedItems.push({order:disp(key),inv:isFusion?key:'',date:orderDate(key),platform:plat(key),shopifySku:contrib[fSku].join(' + '),fusionSku:fSku,iq:insD[fSku],note:'Export shows qty 0 (manually edited line) — verify quantity manually'});continue;}
       rec(key,contrib[fSku].join(' + '),fSku,expected[fSku],insD[fSku]);
     }
-    for(const sku of[...insSet].filter(s=>!explained.has(s))){if(sku.startsWith('BUNDLE -'))continue;extra.push({order:disp(key),inv:isFusion?key:'',platform:plat(key),inspireSku:sku,iq:insD[sku],note:'In '+srcName+', not ordered on platform'});}
+    for(const sku of[...insSet].filter(s=>!explained.has(s))){if(sku.startsWith('BUNDLE -'))continue;extra.push({order:disp(key),inv:isFusion?key:'',date:orderDate(key),platform:plat(key),inspireSku:sku,iq:insD[sku],note:'In '+srcName+', not ordered on platform'});}
   }
-  const onlyShoRows=onlySho.map(k=>{const entries=Object.entries(shoMap[k]);return{order:disp(k),inv:isFusion?k:'',platform:platformOf[k]||'',skus:entries.map(e=>e[0]+' ×'+e[1]).join(', '),totalSkus:entries.length,fulfil:fulfilStatus[disp(k)]||''};});
+  const onlyShoRows=onlySho.map(k=>{const entries=Object.entries(shoMap[k]);return{order:disp(k),inv:isFusion?k:'',date:orderDate(k),platform:platformOf[k]||'',skus:entries.map(e=>e[0]+' ×'+e[1]).join(', '),totalSkus:entries.length,fulfil:fulfilStatus[disp(k)]||''};});
   // ── Fulfillment sync cross-check: Shopify fulfillment status vs pick list presence ──
   const fulfilNoPick=[],pickedNotFulfil=[];
   for(const name of Object.keys(fulfilStatus)){
@@ -1393,9 +1395,7 @@ function comparePH(){
     else if(st==='unfulfilled'&&inPick)pickedNotFulfil.push({order:name,inv:isFusion?k:'',status:st,note:'Pick list exists but Shopify still unfulfilled — fulfillment sync lag'});
   }
   fulfilNoPick.sort((a,b)=>a.order<b.order?-1:1);pickedNotFulfil.sort((a,b)=>a.order<b.order?-1:1);
-  const orderDate={};
-  shopifyPHData.forEach(rw=>{const nm=fName(rw);if(!nm||orderDate[nm])return;const dv=String(sf(rw,['Created at','Created At'])).trim();if(dv)orderDate[nm]=fmtOD(dv);});
-  return{type:'ph',orderDate,isFusion,shortPicks,editedItems,fulfilNoPick,pickedNotFulfil,noIdOrders:[...noIdSet].sort(),refunded:[...refunded].sort(),tagExcluded:[...tagExcludedPH].sort(),tagExcludedLabels:Object.fromEntries(phTagExcludedMap),riskExcluded:[...riskExcludedPH].sort(),riskExcludedLabels:Object.fromEntries(phRiskExcludedMap),shoTotal:shoNames.size+allExcluded.size,shoActive:shoNames.size,insTotal:insNames.size,common:common.length,onlySho:onlySho.map(disp),onlyIns,onlyInsRows,onlyShoRows,mktStatusExcluded,mktStatusExcludedCount:mktStatusExcluded.length,platformOf,fusionPlatform,missing,extra,match,mismatch};
+  return{type:'ph',isFusion,shortPicks,editedItems,fulfilNoPick,pickedNotFulfil,noIdOrders:[...noIdSet].sort(),refunded:[...refunded].sort(),tagExcluded:[...tagExcludedPH].sort(),tagExcludedLabels:Object.fromEntries(phTagExcludedMap),riskExcluded:[...riskExcludedPH].sort(),riskExcludedLabels:Object.fromEntries(phRiskExcludedMap),shoTotal:shoNames.size+allExcluded.size,shoActive:shoNames.size,insTotal:insNames.size,common:common.length,onlySho:onlySho.map(disp),onlyIns,onlyInsRows,onlyShoRows,mktStatusExcluded,mktStatusExcludedCount:mktStatusExcluded.length,platformOf,fusionPlatform,missing,extra,match,mismatch};
 }
 
 // ══ PH MARKETPLACE CONFIG ═════════════════════════════════════════
@@ -1436,7 +1436,9 @@ function compareMY(){
   // Build platform map: order → { SKU → qty }
   const platMap={};
   const platSource={};
+  const platDateMY={};
   const excluded={};
+  const setDateMY=(id,v)=>{const d=normDate(v);if(d&&!platDateMY[id])platDateMY[id]=d;};
 
   // Helper to add to platMap
   function addOrder(orderId,sku,qty,platform){
@@ -1473,6 +1475,7 @@ function compareMY(){
       const fs=(r['Financial Status']||'').toLowerCase();if(fs)lastStatus=fs;
       const name=String(r['Name']||'').trim();
       if(excluded[name])return;
+      setDateMY(name,r['Created at']);
       addOrder(name,String(r['Lineitem sku']||'').trim(),+r['Lineitem quantity']||0,'Shopify');
     });
     // Safety net: remove risk/tag excluded from platMap
@@ -1489,6 +1492,7 @@ function compareMY(){
       // Exclude FBS (Fulfilled By Shopee) orders
       if(String(r['FBS Order']||'').trim().toLowerCase()==='yes'){excluded[orderId]=true;return;}
       if(excluded[orderId])return;
+      setDateMY(orderId,r['Order Creation Date']);
       addOrder(orderId,String(r['SKU Reference No.']||'').trim(),+r['Quantity']||1,'Shopee');
     });
   }
@@ -1501,6 +1505,7 @@ function compareMY(){
       const orderId=String(r['orderNumber']||'').trim();
       if(excl.has(status.toLowerCase())){excluded[orderId]=true;return;}
       if(excluded[orderId])return;
+      setDateMY(orderId,r['createTime']);
       addOrder(orderId,String(r['sellerSku']||'').trim(),1,'Lazada');
     });
   }
@@ -1513,6 +1518,7 @@ function compareMY(){
       const orderId=String(r['Order ID']||'').trim();
       if(excl.has(status.toLowerCase())){excluded[orderId]=true;return;}
       if(excluded[orderId])return;
+      setDateMY(orderId,r['Created Time']);
       addOrder(orderId,String(r['Seller SKU']||'').trim(),+r['Quantity']||1,'TikTok');
     });
   }
@@ -1613,9 +1619,11 @@ function compareMY(){
 
   const missing=[],extra=[],match=[],mismatch=[];
 
+  const dateMY=id=>platDateMY[id]||'';
   function recMY(orderId,platSku,njvSku,pq,nq){
     const platform=platSource[orderId]||'';
-    const row={order:orderId,platform,platformSku:platSku,njvSku,platformQty:pq,njvQty:nq};
+    const date=dateMY(orderId);
+    const row={order:orderId,date,platform,platformSku:platSku,njvSku,platformQty:pq,njvQty:nq};
     if(pq===nq)match.push(row);
     else mismatch.push({...row,diff:pq-nq,remark:nq>pq?`NJV has ${nq-pq} more`:`NJV has ${pq-nq} less`});
   }
@@ -1634,7 +1642,7 @@ function compareMY(){
         const comps=decodeMYBundle(sku)||[];
         if(!comps||comps.length===0){
           // Unknown bundle, no components decoded — flag as missing
-          missing.push({order:orderId,platform:platSource[orderId]||'',platformSku:sku,platformQty:pq,issue:'Bundle SKU could not be decoded — check SKU rules'});
+          missing.push({order:orderId,date:dateMY(orderId),platform:platSource[orderId]||'',platformSku:sku,platformQty:pq,issue:'Bundle SKU could not be decoded — check SKU rules'});
         } else {
           for(const comp of comps){
             // comp is either {sku, qty} (multi-unit token) or a plain string (direct match)
@@ -1649,7 +1657,7 @@ function compareMY(){
                 :`${sku} → ${c}${cQty>1?` (×${cQty})`:''}`;
               recMY(orderId,label,resolvedC,expectedQty,njvD[resolvedC]);
             } else {
-              missing.push({order:orderId,platform:platSource[orderId]||'',platformSku:sku,platformQty:pq,issue:`Bundle component ${c}${cQty>1?` (×${cQty})`:''}  missing from NJV`});
+              missing.push({order:orderId,date:dateMY(orderId),platform:platSource[orderId]||'',platformSku:sku,platformQty:pq,issue:`Bundle component ${c}${cQty>1?` (×${cQty})`:''}  missing from NJV`});
             }
           }
         }
@@ -1663,7 +1671,7 @@ function compareMY(){
           const label=resolvedMother!==mother?`${sku} → ${mother} (alias → ${resolvedMother}, ×${n})`:`${sku} → ${mother} (×${n})`;
           recMY(orderId,label,resolvedMother,expQ,njvD[resolvedMother]);
         } else {
-          missing.push({order:orderId,platform:platSource[orderId]||'',platformSku:sku,platformQty:pq,issue:`Mother SKU ${mother} (qty ${expQ}) missing from NJV`});
+          missing.push({order:orderId,date:dateMY(orderId),platform:platSource[orderId]||'',platformSku:sku,platformQty:pq,issue:`Mother SKU ${mother} (qty ${expQ}) missing from NJV`});
         }
       } else {
         const resolved=resolveMyAlias(sku,njvSkus);
@@ -1672,24 +1680,22 @@ function compareMY(){
           const label=resolved!==sku?`${sku} (alias → ${resolved})`:sku;
           recMY(orderId,label,resolved,pq,njvD[resolved]);
         } else {
-          missing.push({order:orderId,platform:platSource[orderId]||'',platformSku:sku,platformQty:pq,issue:'SKU in platform orders but missing from NJV'});
+          missing.push({order:orderId,date:dateMY(orderId),platform:platSource[orderId]||'',platformSku:sku,platformQty:pq,issue:'SKU in platform orders but missing from NJV'});
         }
       }
     }
 
     for(const sku of[...njvSkus].filter(s=>!explained.has(s)&&!s.startsWith('BUNDLE -'))){
-      extra.push({order:orderId,platform:platSource[orderId]||'',njvSku:sku,njvQty:njvD[sku],note:'SKU in NJV but not in platform orders'});
+      extra.push({order:orderId,date:dateMY(orderId),platform:platSource[orderId]||'',njvSku:sku,njvQty:njvD[sku],note:'SKU in NJV but not in platform orders'});
     }
   }
 
   const onlyPlatRows=[];
-  for(const n of onlyPlat){const skus=Object.entries(platMap[n]).map(([s,q])=>`${s} (×${q})`).join(', ');onlyPlatRows.push({order:n,skus,totalSkus:Object.keys(platMap[n]).length});}
+  for(const n of onlyPlat){const skus=Object.entries(platMap[n]).map(([s,q])=>`${s} (×${q})`).join(', ');onlyPlatRows.push({order:n,date:dateMY(n),skus,totalSkus:Object.keys(platMap[n]).length});}
   const onlyNJVRows=[];
   for(const n of onlyNJV){const skus=Object.entries(njvMap[n]).map(([s,q])=>`${s} (×${q})`).join(', ');onlyNJVRows.push({order:n,skus,totalSkus:Object.keys(njvMap[n]).length});}
 
-  const orderDate={};
-  shopifyMYData.forEach(rw=>{const nm=String(rw['Name']||'').trim();if(!nm||orderDate[nm])return;const dv=String(rw['Created at']||rw['Created At']||'').trim();if(dv)orderDate[nm]=fmtOD(dv);});
-  return{type:'my',orderDate,excluded,platSource,njvStatus,excludedCount:Object.keys(excluded).length,tagExcludedCount:Object.values(excluded).filter(v=>String(v).startsWith('tag:')).length,riskExcludedCount:Object.values(excluded).filter(v=>String(v).startsWith('risk:')).length,platTotal:platNames.size+Object.keys(excluded).length,platActive:platNames.size,njvTotal:njvNames.size,common:common.length,onlyPlat,onlyNJV,onlyPlatRows,onlyNJVRows,missing,extra,match,mismatch};
+  return{type:'my',excluded,platSource,njvStatus,excludedCount:Object.keys(excluded).length,tagExcludedCount:Object.values(excluded).filter(v=>String(v).startsWith('tag:')).length,riskExcludedCount:Object.values(excluded).filter(v=>String(v).startsWith('risk:')).length,platTotal:platNames.size+Object.keys(excluded).length,platActive:platNames.size,njvTotal:njvNames.size,common:common.length,onlyPlat,onlyNJV,onlyPlatRows,onlyNJVRows,missing,extra,match,mismatch};
 }
 
 // ══ DASHBOARD ═════════════════════════════════════════════════════
@@ -1829,14 +1835,14 @@ function renderTable(){
     shortPicks:{title:'⚠️ Short Picks (Fusion)',cols:['Order / Invoice','SKU','To Pick','Picked','Reason'],rows:(r.shortPicks||[]).map(d=>[d.order,d.sku,d.toPick,d.picked,d.reason||''])},
     statusExcluded:{title:'🚫 Status Excluded',cols:['Order / Invoice','Status','Note'],rows:(r.statusExcluded||[]).map(d=>[d.order,d.status,d.note])},
   }:isPH?{
-    match:   {title:'✅ QTY Match',           cols:['Platform','Order','Invoice No','Platform SKU','Fusion SKU','QTY'],rows:r.match.map(d=>[d.platform||'',d.order,d.inv||'',d.shopifySku,d.inspireSku,d.sq])},
-    mismatch:{title:'❌ QTY Mismatch',         cols:['Platform','Order','Invoice No','Platform SKU','Fusion SKU','Order QTY','Fusion QTY','Diff','Remark'],rows:r.mismatch.map(d=>[d.platform||'',d.order,d.inv||'',d.shopifySku,d.inspireSku,d.sq,d.iq,d.diff,d.remark])},
-    missing: {title:'🔴 Missing from Fusion', cols:['Platform','Order','Invoice No','Platform SKU','Order QTY','Issue'],rows:r.missing.map(d=>[d.platform||'',d.order,d.inv||'',d.shopifySku,d.sq,d.issue])},
-    extra:   {title:'🟡 Extra in Fusion',     cols:['Platform','Order','Invoice No','Fusion SKU','Fusion QTY','Note'],rows:r.extra.map(d=>[d.platform||'',d.order,d.inv||'',d.inspireSku,d.iq,d.note])},
-    onlySho: {title:'📋 Only in Platforms',     cols:['Platform','Order','Invoice No','Fulfillment','SKUs','# SKUs'],rows:r.onlyShoRows.map(d=>[d.platform||'',d.order,d.inv||'',d.fulfil||'',d.skus,d.totalSkus])},
-    onlyIns: {title:'📋 Only in Fusion',      cols:['Platform','Invoice No','Note'],rows:(r.onlyInsRows||[]).map(d=>[d.platform||'',d.inv,'No matching platform order'])},
+    match:   {title:'✅ QTY Match',           cols:['Platform','Order','Invoice No','Order Date','Platform SKU','Fusion SKU','QTY'],rows:r.match.map(d=>[d.platform||'',d.order,d.inv||'',d.date||'',d.shopifySku,d.inspireSku,d.sq])},
+    mismatch:{title:'❌ QTY Mismatch',         cols:['Platform','Order','Invoice No','Order Date','Platform SKU','Fusion SKU','Order QTY','Fusion QTY','Diff','Remark'],rows:r.mismatch.map(d=>[d.platform||'',d.order,d.inv||'',d.date||'',d.shopifySku,d.inspireSku,d.sq,d.iq,d.diff,d.remark])},
+    missing: {title:'🔴 Missing from Fusion', cols:['Platform','Order','Invoice No','Order Date','Platform SKU','Order QTY','Issue'],rows:r.missing.map(d=>[d.platform||'',d.order,d.inv||'',d.date||'',d.shopifySku,d.sq,d.issue])},
+    extra:   {title:'🟡 Extra in Fusion',     cols:['Platform','Order','Invoice No','Order Date','Fusion SKU','Fusion QTY','Note'],rows:r.extra.map(d=>[d.platform||'',d.order,d.inv||'',d.date||'',d.inspireSku,d.iq,d.note])},
+    onlySho: {title:'📋 Only in Platforms',     cols:['Platform','Order','Invoice No','Order Date','Fulfillment','SKUs','# SKUs'],rows:r.onlyShoRows.map(d=>[d.platform||'',d.order,d.inv||'',d.date||'',d.fulfil||'',d.skus,d.totalSkus])},
+    onlyIns: {title:'📋 Only in Fusion',      cols:['Platform','Invoice No','Order Date','Note'],rows:(r.onlyInsRows||[]).map(d=>[d.platform||'',d.inv,d.date||'','No matching platform order'])},
     shortPicks:{title:'⚠️ Short Picks (Fusion)',cols:['Order','Invoice No','SKU','To Pick','Picked','Reason'],rows:(r.shortPicks||[]).map(d=>[d.order,d.inv||'',d.sku,d.toPick,d.picked,d.reason||''])},
-    editedItems:{title:'✏️ Edited Items (review)',cols:['Platform','Order','Invoice No','Platform SKU','Fusion SKU','Fusion Picked','Note'],rows:(r.editedItems||[]).map(d=>[d.platform||'',d.order,d.inv||'',d.shopifySku,d.fusionSku,d.iq==null?'':d.iq,d.note])},
+    editedItems:{title:'✏️ Edited Items (review)',cols:['Platform','Order','Invoice No','Order Date','Platform SKU','Fusion SKU','Fusion Picked','Note'],rows:(r.editedItems||[]).map(d=>[d.platform||'',d.order,d.inv||'',d.date||'',d.shopifySku,d.fusionSku,d.iq==null?'':d.iq,d.note])},
     fulfilNoPick:{title:'🚨 Fulfilled · No Pick List',cols:['Order','Invoice No','Shopify Fulfillment','Note'],rows:(r.fulfilNoPick||[]).map(d=>[d.order,d.inv||'',d.status,d.note])},
     pickedNotFulfil:{title:'⏳ Picked · Not Fulfilled',cols:['Order','Invoice No','Shopify Fulfillment','Note'],rows:(r.pickedNotFulfil||[]).map(d=>[d.order,d.inv||'',d.status,d.note])},
     refunded:{title:'🚫 Refunded (Excluded)',  cols:['Order','Note'],rows:r.refunded.map(n=>[n,'Excluded — refunded'])},
@@ -1844,18 +1850,17 @@ function renderTable(){
     riskExcluded:{title:'⚠️ Risk Excluded',cols:['Order','Risk Level','Note'],rows:(r.riskExcluded||[]).map(n=>[n,(r.riskExcludedLabels&&r.riskExcludedLabels[n])||'','Excluded — risk level'])},
     mktStatusExcluded:{title:'🚫 Marketplace Status Excluded',cols:['Platform','Order','Status','Note'],rows:(r.mktStatusExcluded||[]).map(d=>[d.platform,d.order,d.status,d.note])},
   }:{
-    match:   {title:'✅ QTY Match',         cols:['Platform','Order','NJV Status','SKU','QTY'],rows:r.match.map(d=>[d.platform,d.order,(r.njvStatus&&r.njvStatus[d.order])||'',d.platformSku,d.platformQty])},
-    mismatch:{title:'❌ QTY Mismatch',       cols:['Platform','Order','NJV Status','SKU','Platform QTY','NJV QTY','Diff','Remark'],rows:r.mismatch.map(d=>[d.platform,d.order,(r.njvStatus&&r.njvStatus[d.order])||'',d.platformSku,d.platformQty,d.njvQty,d.diff,d.remark])},
-    missing: {title:'🔴 Missing from NJV',  cols:['Platform','Order','NJV Status','Platform SKU','Platform QTY','Issue'],rows:r.missing.map(d=>[d.platform,d.order,(r.njvStatus&&r.njvStatus[d.order])||'',d.platformSku,d.platformQty,d.issue])},
-    extra:   {title:'🟡 Extra in NJV',      cols:['Platform','Order','NJV Status','NJV SKU','NJV QTY','Note'],rows:r.extra.map(d=>[d.platform,d.order,(r.njvStatus&&r.njvStatus[d.order])||'',d.njvSku,d.njvQty,d.note])},
-    onlyPlat:{title:'📋 Only in Platforms', cols:['Platform','Order','SKUs','# SKUs'],rows:r.onlyPlatRows.map(d=>[(r.platSource&&r.platSource[d.order])||'',d.order,d.skus,d.totalSkus])},
+    match:   {title:'✅ QTY Match',         cols:['Platform','Order','Order Date','NJV Status','SKU','QTY'],rows:r.match.map(d=>[d.platform,d.order,d.date||'',(r.njvStatus&&r.njvStatus[d.order])||'',d.platformSku,d.platformQty])},
+    mismatch:{title:'❌ QTY Mismatch',       cols:['Platform','Order','Order Date','NJV Status','SKU','Platform QTY','NJV QTY','Diff','Remark'],rows:r.mismatch.map(d=>[d.platform,d.order,d.date||'',(r.njvStatus&&r.njvStatus[d.order])||'',d.platformSku,d.platformQty,d.njvQty,d.diff,d.remark])},
+    missing: {title:'🔴 Missing from NJV',  cols:['Platform','Order','Order Date','NJV Status','Platform SKU','Platform QTY','Issue'],rows:r.missing.map(d=>[d.platform,d.order,d.date||'',(r.njvStatus&&r.njvStatus[d.order])||'',d.platformSku,d.platformQty,d.issue])},
+    extra:   {title:'🟡 Extra in NJV',      cols:['Platform','Order','Order Date','NJV Status','NJV SKU','NJV QTY','Note'],rows:r.extra.map(d=>[d.platform,d.order,d.date||'',(r.njvStatus&&r.njvStatus[d.order])||'',d.njvSku,d.njvQty,d.note])},
+    onlyPlat:{title:'📋 Only in Platforms', cols:['Platform','Order','Order Date','SKUs','# SKUs'],rows:r.onlyPlatRows.map(d=>[(r.platSource&&r.platSource[d.order])||'',d.order,d.date||'',d.skus,d.totalSkus])},
     onlyNJV: {title:'📋 Only in NJV',       cols:['Order','SKUs','# SKUs'],rows:r.onlyNJVRows.map(d=>[d.order,d.skus,d.totalSkus])},
     excl:    {title:'🚫 Cancelled (Excluded)',cols:['Order','Note'],rows:Object.keys(r.excluded||{}).filter(n=>!String(r.excluded[n]).startsWith('tag:')&&!String(r.excluded[n]).startsWith('risk:')).sort().map(n=>[n,'Cancelled — excluded from audit'])},
     tagExcludedMY:{title:'🏷️ Tag Excluded',cols:['Order','Matched Tag','Note'],rows:Object.keys(r.excluded||{}).filter(n=>String(r.excluded[n]).startsWith('tag:')).sort().map(n=>[n,(r.excluded[n]||'').replace('tag:',''),'Excluded — matched order tag'])},
     riskExcludedMY:{title:'⚠️ Risk Excluded',cols:['Order','Risk Level','Note'],rows:Object.keys(r.excluded||{}).filter(n=>String(r.excluded[n]).startsWith('risk:')).sort().map(n=>[n,(r.excluded[n]||'').replace('risk:',''),'Excluded — risk level'])},
   };
   const v=V[curView];if(!v){document.getElementById('detail-label').textContent='—';document.getElementById('detail-table').innerHTML=`<div class="empty-state">No data</div>`;return;}
-  if(r&&r.orderDate){const oi=v.cols.findIndex(c=>c==='Order'||c==='Order / Invoice');if(oi!==-1){v.cols=[...v.cols,'Order Date'];v.rows=v.rows.map(row=>[...row,r.orderDate[row[oi]]||'']);}}
   document.getElementById('detail-label').textContent=v.title;
   const wrap=document.getElementById('detail-table');
   const q=curSearch.toLowerCase();
@@ -1865,7 +1870,7 @@ function renderTable(){
   const paged=filtered.slice((curPage-1)*PAGE,curPage*PAGE);
   if(!filtered.length){wrap.innerHTML=`<div class="empty-state">No items in this category</div>`;return;}
   const isMM=curView==='mismatch';
-  const diffColIdx=isMM?(isMkt?5:isPH?7:4):-1;
+  const diffColIdx=isMM?(isMkt?5:isPH?8:7):-1;
   wrap.innerHTML=`
     <div class="table-toolbar">
       <div class="table-title-txt">${filtered.length} item${filtered.length!==1?'s':''}</div>
@@ -1878,7 +1883,7 @@ function renderTable(){
       <tbody>${paged.map((row,ri)=>{
         // Check if this row is new vs last run (column offset differs: PH prepends Platform)
         let rowKey='',rowType='';
-        const o=(isPH&&!isMkt)?1:0; // PH tables have a leading Platform column
+        const o=(isPH&&!isMkt)?2:(r&&r.type==='my')?1:0; // PH leads Platform+Order Date (offset 2); MY inserts Order Date after Order (offset 1)
         if(curView==='mismatch'){rowKey=row[1+o]+'|'+row[2+o]+'|'+row[3+o];rowType='mismatch';}
         else if(curView==='missing'){rowKey=row[1+o]+'|'+row[2+o];rowType='missing';}
         else if(curView==='extra'){rowKey=row[1+o]+'|'+row[2+o];rowType='extra';}
@@ -1907,15 +1912,15 @@ function exportView(){
     missing: {n:'Missing',     c:['Order/Invoice',r.label+' SKU',r.label+' QTY','Issue'],d:r.missing.map(d=>[d.order,d.shopifySku,d.sq,d.issue])},
     extra:   {n:'Extra',       c:['Order/Invoice','Fusion SKU','Fusion QTY','Note'],d:r.extra.map(d=>[d.order,d.inspireSku,d.iq,d.note])},
     onlySho: {n:'Only_'+r.label,c:['Order/Invoice','SKUs','# SKUs'],d:r.onlyShoRows.map(d=>[d.order,d.skus,d.totalSkus])},
-    onlyIns: {n:'Only_Fusion',c:['Platform','Invoice No','Note'],d:(r.onlyInsRows||[]).map(d=>[d.platform||'',d.inv,'No matching order'])},
+    onlyIns: {n:'Only_Fusion',c:['Platform','Invoice No','Order Date','Note'],d:(r.onlyInsRows||[]).map(d=>[d.platform||'',d.inv,d.date||'','No matching order'])},
     shortPicks:{n:'Short_Picks',c:['Order/Invoice','SKU','To Pick','Picked','Reason'],d:(r.shortPicks||[]).map(d=>[d.order,d.sku,d.toPick,d.picked,d.reason||''])},
     statusExcluded:{n:'Status_Excluded',c:['Order/Invoice','Status','Note'],d:(r.statusExcluded||[]).map(d=>[d.order,d.status,d.note])},
   }:isPH?{
-    match:   {n:'QTY_Match',   c:['Platform','Order','Invoice No','Platform SKU','Fusion SKU','QTY'],d:r.match.map(d=>[d.platform||'',d.order,d.inv||'',d.shopifySku,d.inspireSku,d.sq])},
-    mismatch:{n:'QTY_Mismatch',c:['Platform','Order','Invoice No','Platform SKU','Fusion SKU','Order QTY','Fusion QTY','Diff','Remark'],d:r.mismatch.map(d=>[d.platform||'',d.order,d.inv||'',d.shopifySku,d.inspireSku,d.sq,d.iq,d.diff,d.remark])},
-    missing: {n:'Missing',     c:['Platform','Order','Invoice No','Platform SKU','Order QTY','Issue'],d:r.missing.map(d=>[d.platform||'',d.order,d.inv||'',d.shopifySku,d.sq,d.issue])},
-    extra:   {n:'Extra',       c:['Platform','Order','Invoice No','Fusion SKU','Fusion QTY','Note'],d:r.extra.map(d=>[d.platform||'',d.order,d.inv||'',d.inspireSku,d.iq,d.note])},
-    onlySho: {n:'Only_Platform',c:['Platform','Order','Invoice No','Fulfillment','SKUs','# SKUs'],d:r.onlyShoRows.map(d=>[d.platform||'',d.order,d.inv||'',d.fulfil||'',d.skus,d.totalSkus])},
+    match:   {n:'QTY_Match',   c:['Platform','Order','Invoice No','Order Date','Platform SKU','Fusion SKU','QTY'],d:r.match.map(d=>[d.platform||'',d.order,d.inv||'',d.date||'',d.shopifySku,d.inspireSku,d.sq])},
+    mismatch:{n:'QTY_Mismatch',c:['Platform','Order','Invoice No','Order Date','Platform SKU','Fusion SKU','Order QTY','Fusion QTY','Diff','Remark'],d:r.mismatch.map(d=>[d.platform||'',d.order,d.inv||'',d.date||'',d.shopifySku,d.inspireSku,d.sq,d.iq,d.diff,d.remark])},
+    missing: {n:'Missing',     c:['Platform','Order','Invoice No','Order Date','Platform SKU','Order QTY','Issue'],d:r.missing.map(d=>[d.platform||'',d.order,d.inv||'',d.date||'',d.shopifySku,d.sq,d.issue])},
+    extra:   {n:'Extra',       c:['Platform','Order','Invoice No','Order Date','Fusion SKU','Fusion QTY','Note'],d:r.extra.map(d=>[d.platform||'',d.order,d.inv||'',d.date||'',d.inspireSku,d.iq,d.note])},
+    onlySho: {n:'Only_Platform',c:['Platform','Order','Invoice No','Order Date','Fulfillment','SKUs','# SKUs'],d:r.onlyShoRows.map(d=>[d.platform||'',d.order,d.inv||'',d.date||'',d.fulfil||'',d.skus,d.totalSkus])},
     onlyIns: {n:'Only_Fusion',c:['Platform','Invoice No','Note'],d:(r.onlyInsRows||[]).map(d=>[d.platform||'',d.inv,'No matching order'])},
     shortPicks:{n:'Short_Picks',c:['Order','Invoice No','SKU','To Pick','Picked','Reason'],d:(r.shortPicks||[]).map(d=>[d.order,d.inv||'',d.sku,d.toPick,d.picked,d.reason||''])},
     editedItems:{n:'Edited_Items',c:['Order','Invoice No','Shopify SKU','Fusion SKU','Fusion Picked','Note'],d:(r.editedItems||[]).map(d=>[d.order,d.inv||'',d.shopifySku,d.fusionSku,d.iq==null?'':d.iq,d.note])},
@@ -1923,16 +1928,15 @@ function exportView(){
     pickedNotFulfil:{n:'Picked_Not_Fulfilled',c:['Order','Invoice No','Shopify Fulfillment','Note'],d:(r.pickedNotFulfil||[]).map(d=>[d.order,d.inv||'',d.status,d.note])},
     refunded:{n:'Refunded',    c:['Order','Note'],d:r.refunded.map(n=>[n,'Excluded'])},
   }:{
-    match:   {n:'QTY_Match',    c:['Platform','Order','SKU','QTY'],d:r.match.map(d=>[d.platform,d.order,d.platformSku,d.platformQty])},
-    mismatch:{n:'QTY_Mismatch', c:['Platform','Order','SKU','Platform QTY','NJV QTY','Diff','Remark'],d:r.mismatch.map(d=>[d.platform,d.order,d.platformSku,d.platformQty,d.njvQty,d.diff,d.remark])},
-    missing: {n:'Missing',      c:['Platform','Order','Platform SKU','Platform QTY','Issue'],d:r.missing.map(d=>[d.platform,d.order,d.platformSku,d.platformQty,d.issue])},
-    extra:   {n:'Extra_NJV',    c:['Platform','Order','NJV SKU','NJV QTY','Note'],d:r.extra.map(d=>[d.platform,d.order,d.njvSku,d.njvQty,d.note])},
-    onlyPlat:{n:'Only_Platforms',c:['Order','SKUs','# SKUs'],d:r.onlyPlatRows.map(d=>[d.order,d.skus,d.totalSkus])},
+    match:   {n:'QTY_Match',    c:['Platform','Order','Order Date','SKU','QTY'],d:r.match.map(d=>[d.platform,d.order,d.date||'',d.platformSku,d.platformQty])},
+    mismatch:{n:'QTY_Mismatch', c:['Platform','Order','Order Date','SKU','Platform QTY','NJV QTY','Diff','Remark'],d:r.mismatch.map(d=>[d.platform,d.order,d.date||'',d.platformSku,d.platformQty,d.njvQty,d.diff,d.remark])},
+    missing: {n:'Missing',      c:['Platform','Order','Order Date','Platform SKU','Platform QTY','Issue'],d:r.missing.map(d=>[d.platform,d.order,d.date||'',d.platformSku,d.platformQty,d.issue])},
+    extra:   {n:'Extra_NJV',    c:['Platform','Order','Order Date','NJV SKU','NJV QTY','Note'],d:r.extra.map(d=>[d.platform,d.order,d.date||'',d.njvSku,d.njvQty,d.note])},
+    onlyPlat:{n:'Only_Platforms',c:['Order','Order Date','SKUs','# SKUs'],d:r.onlyPlatRows.map(d=>[d.order,d.date||'',d.skus,d.totalSkus])},
     onlyNJV: {n:'Only_NJV',     c:['Order','SKUs','# SKUs'],d:r.onlyNJVRows.map(d=>[d.order,d.skus,d.totalSkus])},
     excl:    {n:'Excluded',     c:['Note'],d:[['Cancelled orders excluded from audit']]},
   };
   const v=V[curView];if(!v)return;
-  if(r&&r.orderDate){const oi=v.c.findIndex(c=>c==='Order'||c==='Order/Invoice');if(oi!==-1){v.c=[...v.c,'Order Date'];v.d=v.d.map(row=>[...row,r.orderDate[row[oi]]||'']);}}
   const csv=[v.c,...v.d].map(row=>row.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
   dlFile(`PurestNestSyncCheck_${curMarket.toUpperCase()}_${v.n}.csv`,csv,'text/csv');
 }
@@ -1949,19 +1953,19 @@ function exportFullReport(){
     {n:'Missing from Fusion',d:[['Order/Invoice',r.label+' SKU',r.label+' QTY','Issue'],...r.missing.map(d=>[d.order,d.shopifySku,d.sq,d.issue])]},
     {n:'Extra in Fusion',d:[['Order/Invoice','Fusion SKU','Fusion QTY','Note'],...r.extra.map(d=>[d.order,d.inspireSku,d.iq,d.note])]},
     {n:'Only in '+r.label,d:[['Order/Invoice','SKUs','# SKUs'],...r.onlyShoRows.map(d=>[d.order,d.skus,d.totalSkus])]},
-    {n:'Only in Fusion',d:[['Platform','Invoice No','Note'],...(r.onlyInsRows||[]).map(d=>[d.platform||'',d.inv,'No matching order'])]},
+    {n:'Only in Fusion',d:[['Platform','Invoice No','Order Date','Note'],...(r.onlyInsRows||[]).map(d=>[d.platform||'',d.inv,d.date||'','No matching order'])]},
     {n:'Short Picks',d:[['Order/Invoice','SKU','To Pick','Picked','Reason'],...(r.shortPicks||[]).map(d=>[d.order,d.sku,d.toPick,d.picked,d.reason||''])]},
     {n:'Status Excluded',d:[['Order/Invoice','Status','Note'],...(r.statusExcluded||[]).map(d=>[d.order,d.status,d.note])]},
   ]:isPH?[
     {n:'Summary',d:[['Metric','Value'],['Shopify Total',r.shoTotal],['Refunded Excluded',r.refunded.length],['Active Shopify',r.shoActive],['Fusion Total',r.insTotal],['Orders in Both',r.common],['Missing from Fusion',r.missing.length],['Extra in Fusion',r.extra.length],['QTY Mismatch',r.mismatch.length],['QTY Match',r.match.length],['Only Platform',r.onlySho.length],['Only Fusion',r.onlyIns.length],['Edited Items (review)',(r.editedItems||[]).length],['Marketplace Status Excluded',(r.mktStatusExcludedCount||0)],['Fulfilled No PickList',(r.fulfilNoPick||[]).length],['Picked Not Fulfilled',(r.pickedNotFulfil||[]).length]]},
-    {n:'Missing from Fusion',d:[['Platform','Order','Invoice No','Platform SKU','Order QTY','Issue'],...r.missing.map(d=>[d.platform||'',d.order,d.inv||'',d.shopifySku,d.sq,d.issue])]},
-    {n:'Extra in Fusion',d:[['Platform','Order','Invoice No','Fusion SKU','Fusion QTY','Note'],...r.extra.map(d=>[d.platform||'',d.order,d.inv||'',d.inspireSku,d.iq,d.note])]},
-    {n:'QTY Mismatch',d:[['Platform','Order','Invoice No','Platform SKU','Fusion SKU','Order QTY','Fusion QTY','Diff','Remark'],...r.mismatch.map(d=>[d.platform||'',d.order,d.inv||'',d.shopifySku,d.inspireSku,d.sq,d.iq,d.diff,d.remark])]},
-    {n:'QTY Match',d:[['Platform','Order','Invoice No','Platform SKU','Fusion SKU','QTY'],...r.match.map(d=>[d.platform||'',d.order,d.inv||'',d.shopifySku,d.inspireSku,d.sq])]},
-    {n:'Only in Platforms',d:[['Platform','Order','Invoice No','Fulfillment','SKUs','# SKUs'],...r.onlyShoRows.map(d=>[d.platform||'',d.order,d.inv||'',d.fulfil||'',d.skus,d.totalSkus])]},
+    {n:'Missing from Fusion',d:[['Platform','Order','Invoice No','Order Date','Platform SKU','Order QTY','Issue'],...r.missing.map(d=>[d.platform||'',d.order,d.inv||'',d.date||'',d.shopifySku,d.sq,d.issue])]},
+    {n:'Extra in Fusion',d:[['Platform','Order','Invoice No','Order Date','Fusion SKU','Fusion QTY','Note'],...r.extra.map(d=>[d.platform||'',d.order,d.inv||'',d.date||'',d.inspireSku,d.iq,d.note])]},
+    {n:'QTY Mismatch',d:[['Platform','Order','Invoice No','Order Date','Platform SKU','Fusion SKU','Order QTY','Fusion QTY','Diff','Remark'],...r.mismatch.map(d=>[d.platform||'',d.order,d.inv||'',d.date||'',d.shopifySku,d.inspireSku,d.sq,d.iq,d.diff,d.remark])]},
+    {n:'QTY Match',d:[['Platform','Order','Invoice No','Order Date','Platform SKU','Fusion SKU','QTY'],...r.match.map(d=>[d.platform||'',d.order,d.inv||'',d.date||'',d.shopifySku,d.inspireSku,d.sq])]},
+    {n:'Only in Platforms',d:[['Platform','Order','Invoice No','Order Date','Fulfillment','SKUs','# SKUs'],...r.onlyShoRows.map(d=>[d.platform||'',d.order,d.inv||'',d.date||'',d.fulfil||'',d.skus,d.totalSkus])]},
     {n:'Only in Fusion',d:[['Platform','Invoice No','Note'],...(r.onlyInsRows||[]).map(d=>[d.platform||'',d.inv,'No matching order'])]},
     {n:'Short Picks',d:[['Order','Invoice No','SKU','To Pick','Picked','Reason'],...(r.shortPicks||[]).map(d=>[d.order,d.inv||'',d.sku,d.toPick,d.picked,d.reason||''])]},
-    {n:'Edited Items',d:[['Platform','Order','Invoice No','Platform SKU','Fusion SKU','Fusion Picked','Note'],...(r.editedItems||[]).map(d=>[d.platform||'',d.order,d.inv||'',d.shopifySku,d.fusionSku,d.iq==null?'':d.iq,d.note])]},
+    {n:'Edited Items',d:[['Platform','Order','Invoice No','Order Date','Platform SKU','Fusion SKU','Fusion Picked','Note'],...(r.editedItems||[]).map(d=>[d.platform||'',d.order,d.inv||'',d.date||'',d.shopifySku,d.fusionSku,d.iq==null?'':d.iq,d.note])]},
     {n:'Fulfilled No PickList',d:[['Order','Invoice No','Shopify Fulfillment','Note'],...(r.fulfilNoPick||[]).map(d=>[d.order,d.inv||'',d.status,d.note])]},
     {n:'Picked Not Fulfilled',d:[['Order','Invoice No','Shopify Fulfillment','Note'],...(r.pickedNotFulfil||[]).map(d=>[d.order,d.inv||'',d.status,d.note])]},
     {n:'Refunded',d:[['Order','Note'],...r.refunded.map(n=>[n,'Excluded'])]},
@@ -1970,14 +1974,13 @@ function exportFullReport(){
     {n:'Marketplace Status Excl',d:[['Platform','Order','Status','Note'],...(r.mktStatusExcluded||[]).map(d=>[d.platform,d.order,d.status,d.note])]},
   ]:[
     {n:'Summary',d:[['Metric','Value'],['Platform Total',r.platTotal],['Cancelled Excluded',r.excludedCount],['Active Platform Orders',r.platActive],['NJV Total Orders',r.njvTotal],['Orders in Both',r.common],['Missing from NJV',r.missing.length],['Extra in NJV',r.extra.length],['QTY Mismatch',r.mismatch.length],['QTY Match',r.match.length],['Only in Platforms',r.onlyPlat.length],['Only in NJV',r.onlyNJV.length]]},
-    {n:'Missing from NJV',d:[['Order','Platform SKU','Platform QTY','Issue'],...r.missing.map(d=>[d.order,d.platformSku,d.platformQty,d.issue])]},
-    {n:'Extra in NJV',d:[['Order','NJV SKU','NJV QTY','Note'],...r.extra.map(d=>[d.order,d.njvSku,d.njvQty,d.note])]},
-    {n:'QTY Mismatch',d:[['Order','SKU','Platform QTY','NJV QTY','Diff','Remark'],...r.mismatch.map(d=>[d.order,d.platformSku,d.platformQty,d.njvQty,d.diff,d.remark])]},
-    {n:'QTY Match',d:[['Order','SKU','QTY'],...r.match.map(d=>[d.order,d.platformSku,d.platformQty])]},
-    {n:'Only in Platforms',d:[['Order','SKU','QTY'],...r.onlyPlatRows.map(d=>[d.order,d.sku,d.qty])]},
+    {n:'Missing from NJV',d:[['Order','Order Date','Platform SKU','Platform QTY','Issue'],...r.missing.map(d=>[d.order,d.date||'',d.platformSku,d.platformQty,d.issue])]},
+    {n:'Extra in NJV',d:[['Order','Order Date','NJV SKU','NJV QTY','Note'],...r.extra.map(d=>[d.order,d.date||'',d.njvSku,d.njvQty,d.note])]},
+    {n:'QTY Mismatch',d:[['Order','Order Date','SKU','Platform QTY','NJV QTY','Diff','Remark'],...r.mismatch.map(d=>[d.order,d.date||'',d.platformSku,d.platformQty,d.njvQty,d.diff,d.remark])]},
+    {n:'QTY Match',d:[['Order','Order Date','SKU','QTY'],...r.match.map(d=>[d.order,d.date||'',d.platformSku,d.platformQty])]},
+    {n:'Only in Platforms',d:[['Order','Order Date','SKUs','# SKUs'],...r.onlyPlatRows.map(d=>[d.order,d.date||'',d.skus,d.totalSkus])]},
     {n:'Only in NJV',d:[['Order','SKU','NJV QTY'],...r.onlyNJVRows.map(d=>[d.order,d.sku,d.qty])]},
   ];
-  if(r.orderDate){sheets.forEach(s=>{const hdr=s.d[0];if(!hdr)return;const oi=hdr.findIndex(c=>c==='Order'||c==='Order/Invoice'||c==='Order / Invoice');if(oi===-1)return;s.d[0]=[...hdr,'Order Date'];for(let i=1;i<s.d.length;i++)s.d[i]=[...s.d[i],r.orderDate[s.d[i][oi]]||''];});}
   sheets.forEach(s=>XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(s.d),s.n.slice(0,31)));
   XLSX.writeFile(wb,`PurestNestSyncCheck_${mkt.toUpperCase()}_${new Date().toISOString().slice(0,10)}.xlsx`);
   toast('Report downloaded ✓');
