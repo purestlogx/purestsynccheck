@@ -326,7 +326,7 @@ body:not(.admin-unlocked) .tag-remove{display:none!important;}
 </div>
 
 <nav>
-  <div class="nav-logo">Purest Nest <span>Sync Check</span> <span style="font-size:10px;opacity:.4;font-weight:400">v6.6</span></div>
+  <div class="nav-logo">Purest Nest <span>Sync Check</span> <span style="font-size:10px;opacity:.4;font-weight:400">v6.7</span></div>
   <div style="display:flex;align-items:center;gap:8px;">
     <button id="dark-toggle" onclick="toggleDark()" style="padding:5px 10px;border-radius:6px;border:1px solid var(--border);background:transparent;cursor:pointer;font-size:14px;" title="Toggle dark mode">🌙</button>
     <span id="user-email"></span>
@@ -571,6 +571,33 @@ body:not(.admin-unlocked) .tag-remove{display:none!important;}
         <div class="rule-input-row">
           <input class="rule-input" id="input-shopifyRiskExcl" placeholder="e.g. High" onkeydown="if(event.key==='Enter')addTag('shopifyRiskExcl')"/>
           <button class="rule-add-btn" onclick="addTag('shopifyRiskExcl')">Add</button>
+        </div>
+      </div>
+      <div class="rule-card">
+        <div class="rule-card-title">Shopee — Excluded Statuses</div>
+        <div class="rule-card-desc">Shopee orders with these statuses are excluded from the PH audit.</div>
+        <div class="tag-list" id="tags-shopeeExcl"></div>
+        <div class="rule-input-row">
+          <input class="rule-input" id="input-shopeeExcl" placeholder="e.g. Cancelled" onkeydown="if(event.key==='Enter')addTag('shopeeExcl')"/>
+          <button class="rule-add-btn" onclick="addTag('shopeeExcl')">Add</button>
+        </div>
+      </div>
+      <div class="rule-card">
+        <div class="rule-card-title">Lazada — Excluded Statuses</div>
+        <div class="rule-card-desc">Lazada orders with these statuses are excluded from the PH audit.</div>
+        <div class="tag-list" id="tags-lazadaExcl"></div>
+        <div class="rule-input-row">
+          <input class="rule-input" id="input-lazadaExcl" placeholder="e.g. canceled" onkeydown="if(event.key==='Enter')addTag('lazadaExcl')"/>
+          <button class="rule-add-btn" onclick="addTag('lazadaExcl')">Add</button>
+        </div>
+      </div>
+      <div class="rule-card">
+        <div class="rule-card-title">TikTok — Excluded Statuses</div>
+        <div class="rule-card-desc">TikTok orders with these statuses are excluded from the PH audit.</div>
+        <div class="tag-list" id="tags-tiktokExcl"></div>
+        <div class="rule-input-row">
+          <input class="rule-input" id="input-tiktokExcl" placeholder="e.g. Canceled" onkeydown="if(event.key==='Enter')addTag('tiktokExcl')"/>
+          <button class="rule-add-btn" onclick="addTag('tiktokExcl')">Add</button>
         </div>
       </div>
       <div class="rule-card">
@@ -864,7 +891,7 @@ function toggleAdmin(){toast(isAdmin()?'You have admin access.':'Your account do
 function requireAdmin(){if(!isAdmin()){toast('Admin access required — your account is not on the admin list.',true);return false;}return true;}
 
 // ── Default rules ─────────────────────────────────────────────────────────
-const DEFAULT_PH={mixedSet:['PN-BUNDLE-CGB610+CGCY610+CGSS610'],standalone:['PN-ES-PEH-2','PN-SB-CGCY6-5'],excluded:['refunded'],shopifyTagExcl:[],shopifyRiskExcl:['High','Medium'],multiUnit:[{sku:'PN-SB-SOSE-90',mother:'PN-SB-SOSE-30',mult:3}]};
+const DEFAULT_PH={mixedSet:['PN-BUNDLE-CGB610+CGCY610+CGSS610'],standalone:['PN-ES-PEH-2','PN-SB-CGCY6-5'],excluded:['refunded'],shopifyTagExcl:[],shopifyRiskExcl:['High','Medium'],shopeeExcl:['Cancelled','Unpaid'],lazadaExcl:['canceled'],tiktokExcl:['Canceled'],multiUnit:[{sku:'PN-SB-SOSE-90',mother:'PN-SB-SOSE-30',mult:3}]};
 const DEFAULT_MY={shopeeExcl:['Cancelled','Unpaid'],lazadaExcl:['canceled'],tiktokExcl:['Canceled'],myShopifyExcl:['refunded'],myShopifyTagExcl:[],myShopifyRiskExcl:['High','Medium'],myMixedSet:['PN-BU-SB-CGB10xCGCY10xCGSS10'],myStandalone:['PN-ES-CWPIC-15','PN-ES-PEH-2'],myMultiUnit:[],myAliases:[{from:'GKSB',to:'GKSBH'},{from:'MCP',to:'MCPH'}],myCustomBundles:[{sku:'PNSG-CGB15xSOSE15',components:['PN-SB-CGB-15','PN-SB-SOSE-15']},{sku:'PNSG-CGB1xSOSE1',components:['PN-SB-CGB6-30','PN-SB-SOSE-30']},{sku:'PN-BU-CGB1XPHV1',components:['PN-SB-CGB6-30','PN-SB-PHV-30']}]};
 
 let PH_RULES=JSON.parse(JSON.stringify(DEFAULT_PH));
@@ -1282,7 +1309,7 @@ function comparePH(){
   function ingestMkt(mkt){
     const cfg=MKT_CFG[mkt];const rows=state.ph[mkt.replace('ph','')+'Data']||state.ph[({phshopee:'shopee',phlazada:'lazada',phtiktok:'tiktok'})[mkt]];
     if(!rows||!rows.length)return;
-    const exclList=(mkt==='phshopee'?MY_RULES.shopeeExcl:mkt==='phlazada'?MY_RULES.lazadaExcl:MY_RULES.tiktokExcl)||[];
+    const exclList=(mkt==='phshopee'?PH_RULES.shopeeExcl:mkt==='phlazada'?PH_RULES.lazadaExcl:PH_RULES.tiktokExcl)||[];
     const exclSet=new Set(exclList.map(s=>s.toLowerCase()));
     const seenStatus={};
     for(const r of rows){
@@ -2032,9 +2059,9 @@ function renderBundleMap(){
 
 function renderRules(){
   // PH
-  ['mixed','standalone','excluded','shopifyTagExcl','shopifyRiskExcl'].forEach(k=>{
+  ['mixed','standalone','excluded','shopifyTagExcl','shopifyRiskExcl','shopeeExcl','lazadaExcl','tiktokExcl'].forEach(k=>{
     const el=document.getElementById('tags-'+k);if(!el)return;
-    const arr={mixed:PH_RULES.mixedSet,standalone:PH_RULES.standalone,excluded:PH_RULES.excluded,shopifyTagExcl:PH_RULES.shopifyTagExcl||[],shopifyRiskExcl:PH_RULES.shopifyRiskExcl||[]}[k]||[];
+    const arr={mixed:PH_RULES.mixedSet,standalone:PH_RULES.standalone,excluded:PH_RULES.excluded,shopifyTagExcl:PH_RULES.shopifyTagExcl||[],shopifyRiskExcl:PH_RULES.shopifyRiskExcl||[],shopeeExcl:PH_RULES.shopeeExcl||[],lazadaExcl:PH_RULES.lazadaExcl||[],tiktokExcl:PH_RULES.tiktokExcl||[]}[k]||[];
     el.innerHTML=arr.map((v,i)=>`<span class="tag">${v}<span class="tag-remove" onclick="removeTag('${k}',${i})">×</span></span>`).join('');
   });
   document.getElementById('tags-multiunit').innerHTML=PH_RULES.multiUnit.map((r,i)=>`<span class="tag">${r.sku} → ${r.mult}× ${r.mother}<span class="tag-remove" onclick="removeMulti(${i})">×</span></span>`).join('');
@@ -2048,7 +2075,7 @@ function renderRules(){
   document.getElementById('tags-my-custombundles').innerHTML=MY_RULES.myCustomBundles.map((b,i)=>{const compsStr=b.components.map(c=>typeof c==='object'?(c.qty>1?`${c.sku}×${c.qty}`:c.sku):c).join(', ');return`<span class="tag" style="flex-direction:column;align-items:flex-start;gap:2px;padding:6px 10px"><span style="display:flex;align-items:center;justify-content:space-between;width:100%;gap:8px"><strong>${b.sku}</strong><span class="tag-remove" onclick="removeCustomBundle(${i})">×</span></span><span style="font-size:11px;opacity:.7">${compsStr}</span></span>`;}).join('');
   document.getElementById('tags-my-aliases').innerHTML=MY_RULES.myAliases.map((a,i)=>`<span class="tag">${a.from} = ${a.to}<span class="tag-remove" onclick="removeMYAlias(${i})">×</span></span>`).join('');
 }
-function addTag(k){if(!requireAdmin())return;const inp=document.getElementById('input-'+k),v=inp.value.trim();if(!v)return;const arr={mixed:PH_RULES.mixedSet,standalone:PH_RULES.standalone,excluded:PH_RULES.excluded,shopifyTagExcl:PH_RULES.shopifyTagExcl,shopifyRiskExcl:PH_RULES.shopifyRiskExcl}[k];if(!arr.includes(v)){arr.push(v);savePHRules();renderRules();toast('Rule saved ✓');}inp.value='';}
+function addTag(k){if(!requireAdmin())return;const inp=document.getElementById('input-'+k),v=inp.value.trim();if(!v)return;const arr={mixed:PH_RULES.mixedSet,standalone:PH_RULES.standalone,excluded:PH_RULES.excluded,shopifyTagExcl:PH_RULES.shopifyTagExcl,shopifyRiskExcl:PH_RULES.shopifyRiskExcl,shopeeExcl:PH_RULES.shopeeExcl,lazadaExcl:PH_RULES.lazadaExcl,tiktokExcl:PH_RULES.tiktokExcl}[k];if(!arr.includes(v)){arr.push(v);savePHRules();renderRules();toast('Rule saved ✓');}inp.value='';}
 function removeTag(k,i){if(!requireAdmin())return;({mixed:PH_RULES.mixedSet,standalone:PH_RULES.standalone,excluded:PH_RULES.excluded,shopifyTagExcl:PH_RULES.shopifyTagExcl,shopifyRiskExcl:PH_RULES.shopifyRiskExcl})[k].splice(i,1);savePHRules();renderRules();}
 function addMultiUnit(){if(!requireAdmin())return;const sku=document.getElementById('input-mu-sku').value.trim(),mother=document.getElementById('input-mu-mother').value.trim(),mult=+document.getElementById('input-mu-mult').value;if(!sku||!mother||!mult){toast('Please fill in all fields',true);return;}PH_RULES.multiUnit.push({sku,mother,mult});savePHRules();renderRules();['mu-sku','mu-mother','mu-mult'].forEach(k=>document.getElementById('input-'+k).value='');toast('Rule saved ✓');}
 function removeMulti(i){if(!requireAdmin())return;PH_RULES.multiUnit.splice(i,1);savePHRules();renderRules();}
