@@ -326,7 +326,7 @@ body:not(.admin-unlocked) .tag-remove{display:none!important;}
 </div>
 
 <nav>
-  <div class="nav-logo">Purest Nest <span>Sync Check</span> <span style="font-size:10px;opacity:.4;font-weight:400">v7.1</span></div>
+  <div class="nav-logo">Purest Nest <span>Sync Check</span> <span style="font-size:10px;opacity:.4;font-weight:400">v7.2</span></div>
   <div style="display:flex;align-items:center;gap:8px;">
     <button id="dark-toggle" onclick="toggleDark()" style="padding:5px 10px;border-radius:6px;border:1px solid var(--border);background:transparent;cursor:pointer;font-size:14px;" title="Toggle dark mode">🌙</button>
     <span id="user-email"></span>
@@ -1382,6 +1382,10 @@ function comparePH(){
   const uploadedMps=new Set([['shopify',state.ph.shopify1Data||state.ph.shopify2Data],['shopee',state.ph.shopeeData],['lazada',state.ph.lazadaData],['tiktok',state.ph.tiktokData]].filter(x=>x[1]&&x[1].length).map(x=>x[0]));
   const plat=key=>platformOf[key]||fusionPlatform[key]||'';
   const orderDate=key=>dateOf[key]||(pickDateOf[key]?pickDateOf[key]+' (picked)':'');
+  // Short picks are collected during the 3PL loop above, before plat()/orderDate() exist.
+  // Fill in platform and order date here so the sheet can show the order number and its
+  // creation date (Shopify "Created at"; falls back to the pick date for marketplace orders).
+  shortPicks.forEach(sp=>{sp.platform=plat(sp.inv);sp.date=orderDate(sp.inv);});
   // Marketplace orders dropped by the Excluded Statuses rules (e.g. TikTok "Canceled").
   // These were previously left out of the exclusion test below, so a cancelled order that
   // Fusion had already picked was reported as "Only in Fusion" — a false unmatched order.
@@ -1904,7 +1908,7 @@ function renderTable(){
     extra:   {title:'🟡 Extra in Fusion',     cols:['Platform','Order','Invoice No','Order Date','Fusion SKU','Fusion QTY','Note'],rows:r.extra.map(d=>[d.platform||'',d.order,d.inv||'',d.date||'',d.inspireSku,d.iq,d.note])},
     onlySho: {title:'📋 Only in Platforms',     cols:['Platform','Order','Invoice No','Order Date','Fulfillment','SKUs','# SKUs'],rows:r.onlyShoRows.map(d=>[d.platform||'',d.order,d.inv||'',d.date||'',d.fulfil||'',d.skus,d.totalSkus])},
     onlyIns: {title:'📋 Only in Fusion',      cols:['Platform','Invoice No','Order Date','Note'],rows:(r.onlyInsRows||[]).map(d=>[d.platform||'',d.inv,d.date||'','No matching platform order'])},
-    shortPicks:{title:'⚠️ Short Picks (Fusion)',cols:['Order','Invoice No','SKU','To Pick','Picked','Reason'],rows:(r.shortPicks||[]).map(d=>[d.order,d.inv||'',d.sku,d.toPick,d.picked,d.reason||''])},
+    shortPicks:{title:'⚠️ Short Picks (Fusion)',cols:['Platform','Order No','Order Date','SKU','To Pick','Picked','Reason'],rows:(r.shortPicks||[]).map(d=>[d.platform||'',d.order,d.date||'',d.sku,d.toPick,d.picked,d.reason||''])},
     editedItems:{title:'✏️ Edited Items (review)',cols:['Platform','Order','Invoice No','Order Date','Platform SKU','Fusion SKU','Fusion Picked','Note'],rows:(r.editedItems||[]).map(d=>[d.platform||'',d.order,d.inv||'',d.date||'',d.shopifySku,d.fusionSku,d.iq==null?'':d.iq,d.note])},
     fulfilNoPick:{title:'🚨 Fulfilled · No Pick List',cols:['Order','Invoice No','Shopify Fulfillment','Note'],rows:(r.fulfilNoPick||[]).map(d=>[d.order,d.inv||'',d.status,d.note])},
     pickedNotFulfil:{title:'⏳ Picked · Not Fulfilled',cols:['Order','Invoice No','Shopify Fulfillment','Note'],rows:(r.pickedNotFulfil||[]).map(d=>[d.order,d.inv||'',d.status,d.note])},
@@ -1986,7 +1990,7 @@ function exportView(){
     extra:   {n:'Extra',       c:['Platform','Order','Invoice No','Order Date','Fusion SKU','Fusion QTY','Note'],d:r.extra.map(d=>[d.platform||'',d.order,d.inv||'',d.date||'',d.inspireSku,d.iq,d.note])},
     onlySho: {n:'Only_Platform',c:['Platform','Order','Invoice No','Order Date','Fulfillment','SKUs','# SKUs'],d:r.onlyShoRows.map(d=>[d.platform||'',d.order,d.inv||'',d.date||'',d.fulfil||'',d.skus,d.totalSkus])},
     onlyIns: {n:'Only_Fusion',c:['Platform','Invoice No','Note'],d:(r.onlyInsRows||[]).map(d=>[d.platform||'',d.inv,'No matching order'])},
-    shortPicks:{n:'Short_Picks',c:['Order','Invoice No','SKU','To Pick','Picked','Reason'],d:(r.shortPicks||[]).map(d=>[d.order,d.inv||'',d.sku,d.toPick,d.picked,d.reason||''])},
+    shortPicks:{n:'Short_Picks',c:['Platform','Order No','Order Date','SKU','To Pick','Picked','Reason'],d:(r.shortPicks||[]).map(d=>[d.platform||'',d.order,d.date||'',d.sku,d.toPick,d.picked,d.reason||''])},
     editedItems:{n:'Edited_Items',c:['Order','Invoice No','Shopify SKU','Fusion SKU','Fusion Picked','Note'],d:(r.editedItems||[]).map(d=>[d.order,d.inv||'',d.shopifySku,d.fusionSku,d.iq==null?'':d.iq,d.note])},
     fulfilNoPick:{n:'Fulfilled_No_PickList',c:['Order','Invoice No','Shopify Fulfillment','Note'],d:(r.fulfilNoPick||[]).map(d=>[d.order,d.inv||'',d.status,d.note])},
     pickedNotFulfil:{n:'Picked_Not_Fulfilled',c:['Order','Invoice No','Shopify Fulfillment','Note'],d:(r.pickedNotFulfil||[]).map(d=>[d.order,d.inv||'',d.status,d.note])},
@@ -2028,7 +2032,7 @@ function exportFullReport(){
     {n:'QTY Match',d:[['Platform','Order','Invoice No','Order Date','Platform SKU','Fusion SKU','QTY'],...r.match.map(d=>[d.platform||'',d.order,d.inv||'',d.date||'',d.shopifySku,d.inspireSku,d.sq])]},
     {n:'Only in Platforms',d:[['Platform','Order','Invoice No','Order Date','Fulfillment','SKUs','# SKUs'],...r.onlyShoRows.map(d=>[d.platform||'',d.order,d.inv||'',d.date||'',d.fulfil||'',d.skus,d.totalSkus])]},
     {n:'Only in Fusion',d:[['Platform','Invoice No','Note'],...(r.onlyInsRows||[]).map(d=>[d.platform||'',d.inv,'No matching order'])]},
-    {n:'Short Picks',d:[['Order','Invoice No','SKU','To Pick','Picked','Reason'],...(r.shortPicks||[]).map(d=>[d.order,d.inv||'',d.sku,d.toPick,d.picked,d.reason||''])]},
+    {n:'Short Picks',d:[['Platform','Order No','Order Date','SKU','To Pick','Picked','Reason'],...(r.shortPicks||[]).map(d=>[d.platform||'',d.order,d.date||'',d.sku,d.toPick,d.picked,d.reason||''])]},
     {n:'Edited Items',d:[['Platform','Order','Invoice No','Order Date','Platform SKU','Fusion SKU','Fusion Picked','Note'],...(r.editedItems||[]).map(d=>[d.platform||'',d.order,d.inv||'',d.date||'',d.shopifySku,d.fusionSku,d.iq==null?'':d.iq,d.note])]},
     {n:'Fulfilled No PickList',d:[['Order','Invoice No','Shopify Fulfillment','Note'],...(r.fulfilNoPick||[]).map(d=>[d.order,d.inv||'',d.status,d.note])]},
     {n:'Picked Not Fulfilled',d:[['Order','Invoice No','Shopify Fulfillment','Note'],...(r.pickedNotFulfil||[]).map(d=>[d.order,d.inv||'',d.status,d.note])]},
