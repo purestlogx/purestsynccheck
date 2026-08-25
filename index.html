@@ -326,7 +326,7 @@ body:not(.admin-unlocked) .tag-remove{display:none!important;}
 </div>
 
 <nav>
-  <div class="nav-logo">Purest Nest <span>Sync Check</span> <span style="font-size:10px;opacity:.4;font-weight:400">v7.0</span></div>
+  <div class="nav-logo">Purest Nest <span>Sync Check</span> <span style="font-size:10px;opacity:.4;font-weight:400">v7.1</span></div>
   <div style="display:flex;align-items:center;gap:8px;">
     <button id="dark-toggle" onclick="toggleDark()" style="padding:5px 10px;border-radius:6px;border:1px solid var(--border);background:transparent;cursor:pointer;font-size:14px;" title="Toggle dark mode">🌙</button>
     <span id="user-email"></span>
@@ -1457,17 +1457,20 @@ function comparePH(){
 
 // ══ PH MARKETPLACE CONFIG ═════════════════════════════════════════
 // MKT_CFG + decodeMktCustomBundle are used inside comparePH to ingest
-// Shopee/Lazada/TikTok order files and custom bundle rules.
+// Shopee/Lazada/TikTok order files and PH's own custom bundle rules.
 const MKT_CFG={
   phshopee:{label:'Shopee',mp:'shopee',idCols:['Order ID'],skuCols:['SKU Reference No.','Seller SKU'],qtyCols:['Quantity'],statusCols:['Order Status','Return / Refund Status'],skipDescRow:false},
   phlazada:{label:'Lazada',mp:'lazada',idCols:['orderNumber'],skuCols:['sellerSku'],qtyCols:['Quantity'],rowIsOneUnit:true,statusCols:['status'],skipDescRow:false},
   phtiktok:{label:'TikTok',mp:'tiktok',idCols:['Order ID'],skuCols:['Seller SKU'],qtyCols:['Quantity'],statusCols:['Order Status','Order Substatus'],skipDescRow:true},
 };
 function decodeMktCustomBundle(sku){
-  // PH's own list wins; the MY list is kept as a fallback so bundles defined
-  // before the PH card existed keep working without being re-entered.
+  // PH reads its OWN manually-entered bundle list only. It must never fall back to
+  // MY_RULES.myCustomBundles: this runs before classifyPH and continues past the whole
+  // classification switch, so a MY rule would hard-override PH's prefix decoder — and
+  // MY's seeded defaults cannot be deleted, so they would reach PH permanently.
+  // The general prefix/suffix bundle detection stays shared; only the manual lists are split.
   const u=nk(sku);
-  const cb=(PH_RULES.customBundles||[]).find(b=>nk(b.sku)===u)||(MY_RULES.myCustomBundles||[]).find(b=>nk(b.sku)===u);
+  const cb=(PH_RULES.customBundles||[]).find(b=>nk(b.sku)===u);
   if(cb&&cb.components&&cb.components.length)return cb.components.map(x=>typeof x==='object'?{sku:x.sku,qty:x.qty||1}:{sku:x,qty:1});
   return null;
 }
