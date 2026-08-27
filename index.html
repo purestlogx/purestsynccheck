@@ -326,7 +326,7 @@ body:not(.admin-unlocked) .tag-remove{display:none!important;}
 </div>
 
 <nav>
-  <div class="nav-logo">Purest Nest <span>Sync Check</span> <span style="font-size:10px;opacity:.4;font-weight:400">v7.3</span></div>
+  <div class="nav-logo">Purest Nest <span>Sync Check</span> <span style="font-size:10px;opacity:.4;font-weight:400">v7.4</span></div>
   <div style="display:flex;align-items:center;gap:8px;">
     <button id="dark-toggle" onclick="toggleDark()" style="padding:5px 10px;border-radius:6px;border:1px solid var(--border);background:transparent;cursor:pointer;font-size:14px;" title="Toggle dark mode">🌙</button>
     <span id="user-email"></span>
@@ -1318,11 +1318,15 @@ function comparePH(){
   const excludedKeys=new Set([...allExcluded].map(keyOf).filter(Boolean));
   const active=shopRows.filter(r=>!allExcluded.has(r.name));
   const shoMap={};const noIdSet=new Set();const platformOf={};const dateOf={};const pickDateOf={};
+  // Every order key seen in ANY uploaded platform export, excluded ones included. Used to keep
+  // Fusion-only rows out of Short Picks — the pick list covers orders the platform export may
+  // not, and those rows can show neither an order name, a platform, nor an order date.
+  const platformSeen=new Set();
   // Capture the created date for EVERY Shopify order, including excluded ones. The loop below
   // only walks `active`, so refunded/tag/risk orders would otherwise have no date anywhere and
   // their tabs could not show one. Excluded orders never enter shoMap/common, so this adds a
   // date only where there was none — it cannot change an existing row.
-  for(const r of shopRows){const k=keyOf(r.name);if(k&&r.date&&!dateOf[k])dateOf[k]=r.date;}
+  for(const r of shopRows){const k=keyOf(r.name);if(!k)continue;platformSeen.add(k);if(r.date&&!dateOf[k])dateOf[k]=r.date;}
   for(const r of active){const k=keyOf(r.name);if(!k){noIdSet.add(r.name);continue;}if(!shoMap[k])shoMap[k]={};shoMap[k][r.sku]=(shoMap[k][r.sku]||0)+r.qty;if(!platformOf[k])platformOf[k]='Shopify';if(r.date&&!dateOf[k])dateOf[k]=r.date;}
   // ── Merge marketplace platforms (Shopee/Lazada/TikTok): each order ID = Fusion invoice ──
   const mktStatusExcluded=[]; // {order, platform, status, note}
@@ -1335,6 +1339,7 @@ function comparePH(){
     for(const r of rows){
       const id=String(sfx(r,cfg.idCols)).trim();
       if(!id||id==='Platform unique order ID.')continue;
+      platformSeen.add(id);
       const status=String(sfx(r,cfg.statusCols)).trim().toLowerCase();
       if(status&&!seenStatus[id])seenStatus[id]=status;
       // Read the platform's own order-created date. Set BEFORE the exclusion check below so
@@ -1356,7 +1361,7 @@ function comparePH(){
   ingestMkt('phshopee');ingestMkt('phlazada');ingestMkt('phtiktok');
   // ── 3PL side: normalise both formats to { orderKey: { SKU: qty } }
   const fCol=(row,re)=>{const k=Object.keys(row).find(k=>re.test(String(k).trim()));return k===undefined?'':row[k];};
-  const insMap={};const tMap={};const shortPicks=[];const fusionPlatform={};
+  const insMap={};const tMap={};let shortPicks=[];const fusionPlatform={};
   for(const r of insRows){
     if(isFusion){
       const mp=String(fCol(r,/^marketplace$/i)||'').trim().toLowerCase();
@@ -1394,6 +1399,11 @@ function comparePH(){
   // Short picks are collected during the 3PL loop above, before plat()/orderDate() exist.
   // Fill in platform and order date here so the sheet can show the order number and its
   // creation date (Shopify "Created at"; falls back to the pick date for marketplace orders).
+  // Drop Fusion pick-list rows whose order isn't in any uploaded platform export. Those rows
+  // can't resolve an order name, a platform or an order date, so they rendered as the raw
+  // invoice number with Fusion's own "N/A" placeholders. Counted, not silently discarded.
+  const shortPicksSkipped=shortPicks.filter(sp=>!platformSeen.has(sp.inv)).length;
+  shortPicks=shortPicks.filter(sp=>platformSeen.has(sp.inv));
   shortPicks.forEach(sp=>{sp.platform=plat(sp.inv);sp.date=orderDate(sp.inv);});
   // Same treatment for marketplace status exclusions — pushed inside ingestMkt, before orderDate exists.
   mktStatusExcluded.forEach(e=>{e.date=orderDate(e.order);});
@@ -1471,7 +1481,7 @@ function comparePH(){
   // refunded / tagExcluded / riskExcluded are plain arrays of Shopify order NAMES, so their
   // tabs look the date up here rather than the arrays being reshaped into objects.
   const excludedDates=Object.fromEntries([...allExcluded].map(n=>[n,orderDate(keyOf(n))]).filter(([,d])=>d));
-  return{type:'ph',isFusion,shortPicks,editedItems,fulfilNoPick,pickedNotFulfil,excludedDates,noIdOrders:[...noIdSet].sort(),refunded:[...refunded].sort(),tagExcluded:[...tagExcludedPH].sort(),tagExcludedLabels:Object.fromEntries(phTagExcludedMap),riskExcluded:[...riskExcludedPH].sort(),riskExcludedLabels:Object.fromEntries(phRiskExcludedMap),shoTotal:shoNames.size+allExcluded.size,shoActive:shoNames.size,insTotal:insNames.size,common:common.length,onlySho:onlySho.map(disp),onlyIns,onlyInsRows,onlyShoRows,mktStatusExcluded,mktStatusExcludedCount:mktStatusExcluded.length,cancelledPicked,platformOf,fusionPlatform,missing,extra,match,mismatch};
+  return{type:'ph',isFusion,shortPicks,shortPicksSkipped,editedItems,fulfilNoPick,pickedNotFulfil,excludedDates,noIdOrders:[...noIdSet].sort(),refunded:[...refunded].sort(),tagExcluded:[...tagExcludedPH].sort(),tagExcludedLabels:Object.fromEntries(phTagExcludedMap),riskExcluded:[...riskExcludedPH].sort(),riskExcludedLabels:Object.fromEntries(phRiskExcludedMap),shoTotal:shoNames.size+allExcluded.size,shoActive:shoNames.size,insTotal:insNames.size,common:common.length,onlySho:onlySho.map(disp),onlyIns,onlyInsRows,onlyShoRows,mktStatusExcluded,mktStatusExcludedCount:mktStatusExcluded.length,cancelledPicked,platformOf,fusionPlatform,missing,extra,match,mismatch};
 }
 
 // ══ PH MARKETPLACE CONFIG ═════════════════════════════════════════
@@ -2044,7 +2054,7 @@ function exportFullReport(){
     {n:'Short Picks',d:[['Order/Invoice','SKU','To Pick','Picked','Reason'],...(r.shortPicks||[]).map(d=>[d.order,d.sku,d.toPick,d.picked,d.reason||''])]},
     {n:'Status Excluded',d:[['Order/Invoice','Status','Note'],...(r.statusExcluded||[]).map(d=>[d.order,d.status,d.note])]},
   ]:isPH?[
-    {n:'Summary',d:[['Metric','Value'],['Shopify Total',r.shoTotal],['Refunded Excluded',r.refunded.length],['Active Shopify',r.shoActive],['Fusion Total',r.insTotal],['Orders in Both',r.common],['Missing from Fusion',r.missing.length],['Extra in Fusion',r.extra.length],['QTY Mismatch',r.mismatch.length],['QTY Match',r.match.length],['Only Platform',r.onlySho.length],['Only Fusion',r.onlyIns.length],['Edited Items (review)',(r.editedItems||[]).length],['Marketplace Status Excluded',(r.mktStatusExcludedCount||0)],['Cancelled After Picking',(r.cancelledPicked||[]).length],['Fulfilled No PickList',(r.fulfilNoPick||[]).length],['Picked Not Fulfilled',(r.pickedNotFulfil||[]).length]]},
+    {n:'Summary',d:[['Metric','Value'],['Shopify Total',r.shoTotal],['Refunded Excluded',r.refunded.length],['Active Shopify',r.shoActive],['Fusion Total',r.insTotal],['Orders in Both',r.common],['Missing from Fusion',r.missing.length],['Extra in Fusion',r.extra.length],['QTY Mismatch',r.mismatch.length],['QTY Match',r.match.length],['Only Platform',r.onlySho.length],['Only Fusion',r.onlyIns.length],['Edited Items (review)',(r.editedItems||[]).length],['Marketplace Status Excluded',(r.mktStatusExcludedCount||0)],['Cancelled After Picking',(r.cancelledPicked||[]).length],['Short Picks',(r.shortPicks||[]).length],['Short Picks skipped (order not in platform export)',(r.shortPicksSkipped||0)],['Fulfilled No PickList',(r.fulfilNoPick||[]).length],['Picked Not Fulfilled',(r.pickedNotFulfil||[]).length]]},
     {n:'Missing from Fusion',d:[['Platform','Order No','Invoice No','Order Date','Platform SKU','Order QTY','Issue'],...r.missing.map(d=>[d.platform||'',d.order,d.inv||'',d.date||'',d.shopifySku,d.sq,d.issue])]},
     {n:'Extra in Fusion',d:[['Platform','Order No','Invoice No','Order Date','Fusion SKU','Fusion QTY','Note'],...r.extra.map(d=>[d.platform||'',d.order,d.inv||'',d.date||'',d.inspireSku,d.iq,d.note])]},
     {n:'QTY Mismatch',d:[['Platform','Order No','Invoice No','Order Date','Platform SKU','Fusion SKU','Order QTY','Fusion QTY','Diff','Remark'],...r.mismatch.map(d=>[d.platform||'',d.order,d.inv||'',d.date||'',d.shopifySku,d.inspireSku,d.sq,d.iq,d.diff,d.remark])]},
