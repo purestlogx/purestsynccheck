@@ -326,7 +326,7 @@ body:not(.admin-unlocked) .tag-remove{display:none!important;}
 </div>
 
 <nav>
-  <div class="nav-logo">Purest Nest <span>Sync Check</span> <span style="font-size:10px;opacity:.4;font-weight:400">v7.4</span></div>
+  <div class="nav-logo">Purest Nest <span>Sync Check</span> <span style="font-size:10px;opacity:.4;font-weight:400">v7.5</span></div>
   <div style="display:flex;align-items:center;gap:8px;">
     <button id="dark-toggle" onclick="toggleDark()" style="padding:5px 10px;border-radius:6px;border:1px solid var(--border);background:transparent;cursor:pointer;font-size:14px;" title="Toggle dark mode">🌙</button>
     <span id="user-email"></span>
@@ -1933,7 +1933,7 @@ function renderTable(){
     extra:   {title:'🟡 Extra in Fusion',     cols:['Platform','Order No','Invoice No','Order Date','Fusion SKU','Fusion QTY','Note'],rows:r.extra.map(d=>[d.platform||'',d.order,d.inv||'',d.date||'',d.inspireSku,d.iq,d.note])},
     onlySho: {title:'📋 Only in Platforms',     cols:['Platform','Order No','Invoice No','Order Date','Fulfillment','SKUs','# SKUs'],rows:r.onlyShoRows.map(d=>[d.platform||'',d.order,d.inv||'',d.date||'',d.fulfil||'',d.skus,d.totalSkus])},
     onlyIns: {title:'📋 Only in Fusion',      cols:['Platform','Order No','Invoice No','Order Date','Note'],rows:(r.onlyInsRows||[]).map(d=>[d.platform||'',d.order||'',d.inv,d.date||'','No matching platform order'])},
-    shortPicks:{title:'⚠️ Short Picks (Fusion)',cols:['Platform','Order No','Order Date','SKU','To Pick','Picked','Reason'],rows:(r.shortPicks||[]).map(d=>[d.platform||'',d.order,d.date||'',d.sku,d.toPick,d.picked,d.reason||''])},
+    shortPicks:{title:'⚠️ Short Picks (Fusion)',cols:['Platform','Order No','Invoice No','Order Date','SKU','To Pick','Picked','Reason'],rows:(r.shortPicks||[]).map(d=>[d.platform||'',d.order,d.inv||'',d.date||'',d.sku,d.toPick,d.picked,d.reason||''])},
     editedItems:{title:'✏️ Edited Items (review)',cols:['Platform','Order No','Invoice No','Order Date','Platform SKU','Fusion SKU','Fusion Picked','Note'],rows:(r.editedItems||[]).map(d=>[d.platform||'',d.order,d.inv||'',d.date||'',d.shopifySku,d.fusionSku,d.iq==null?'':d.iq,d.note])},
     fulfilNoPick:{title:'🚨 Fulfilled · No Pick List',cols:['Order No','Invoice No','Order Date','Shopify Fulfillment','Note'],rows:(r.fulfilNoPick||[]).map(d=>[d.order,d.inv||'',d.date||'',d.status,d.note])},
     pickedNotFulfil:{title:'⏳ Picked · Not Fulfilled',cols:['Order No','Invoice No','Order Date','Shopify Fulfillment','Note'],rows:(r.pickedNotFulfil||[]).map(d=>[d.order,d.inv||'',d.date||'',d.status,d.note])},
@@ -2015,7 +2015,7 @@ function exportView(){
     extra:   {n:'Extra',       c:['Platform','Order No','Invoice No','Order Date','Fusion SKU','Fusion QTY','Note'],d:r.extra.map(d=>[d.platform||'',d.order,d.inv||'',d.date||'',d.inspireSku,d.iq,d.note])},
     onlySho: {n:'Only_Platform',c:['Platform','Order No','Invoice No','Order Date','Fulfillment','SKUs','# SKUs'],d:r.onlyShoRows.map(d=>[d.platform||'',d.order,d.inv||'',d.date||'',d.fulfil||'',d.skus,d.totalSkus])},
     onlyIns: {n:'Only_Fusion',c:['Platform','Order No','Invoice No','Order Date','Note'],d:(r.onlyInsRows||[]).map(d=>[d.platform||'',d.order||'',d.inv,d.date||'','No matching order'])},
-    shortPicks:{n:'Short_Picks',c:['Platform','Order No','Order Date','SKU','To Pick','Picked','Reason'],d:(r.shortPicks||[]).map(d=>[d.platform||'',d.order,d.date||'',d.sku,d.toPick,d.picked,d.reason||''])},
+    shortPicks:{n:'Short_Picks',c:['Platform','Order No','Invoice No','Order Date','SKU','To Pick','Picked','Reason'],d:(r.shortPicks||[]).map(d=>[d.platform||'',d.order,d.inv||'',d.date||'',d.sku,d.toPick,d.picked,d.reason||''])},
     editedItems:{n:'Edited_Items',c:['Platform','Order No','Invoice No','Order Date','Platform SKU','Fusion SKU','Fusion Picked','Note'],d:(r.editedItems||[]).map(d=>[d.platform||'',d.order,d.inv||'',d.date||'',d.shopifySku,d.fusionSku,d.iq==null?'':d.iq,d.note])},
     fulfilNoPick:{n:'Fulfilled_No_PickList',c:['Order No','Invoice No','Order Date','Shopify Fulfillment','Note'],d:(r.fulfilNoPick||[]).map(d=>[d.order,d.inv||'',d.date||'',d.status,d.note])},
     pickedNotFulfil:{n:'Picked_Not_Fulfilled',c:['Order No','Invoice No','Order Date','Shopify Fulfillment','Note'],d:(r.pickedNotFulfil||[]).map(d=>[d.order,d.inv||'',d.date||'',d.status,d.note])},
@@ -2061,7 +2061,7 @@ function exportFullReport(){
     {n:'QTY Match',d:[['Platform','Order No','Invoice No','Order Date','Platform SKU','Fusion SKU','QTY'],...r.match.map(d=>[d.platform||'',d.order,d.inv||'',d.date||'',d.shopifySku,d.inspireSku,d.sq])]},
     {n:'Only in Platforms',d:[['Platform','Order No','Invoice No','Order Date','Fulfillment','SKUs','# SKUs'],...r.onlyShoRows.map(d=>[d.platform||'',d.order,d.inv||'',d.date||'',d.fulfil||'',d.skus,d.totalSkus])]},
     {n:'Only in Fusion',d:[['Platform','Order No','Invoice No','Order Date','Note'],...(r.onlyInsRows||[]).map(d=>[d.platform||'',d.order||'',d.inv,d.date||'','No matching order'])]},
-    {n:'Short Picks',d:[['Platform','Order No','Order Date','SKU','To Pick','Picked','Reason'],...(r.shortPicks||[]).map(d=>[d.platform||'',d.order,d.date||'',d.sku,d.toPick,d.picked,d.reason||''])]},
+    {n:'Short Picks',d:[['Platform','Order No','Invoice No','Order Date','SKU','To Pick','Picked','Reason'],...(r.shortPicks||[]).map(d=>[d.platform||'',d.order,d.inv||'',d.date||'',d.sku,d.toPick,d.picked,d.reason||''])]},
     {n:'Edited Items',d:[['Platform','Order No','Invoice No','Order Date','Platform SKU','Fusion SKU','Fusion Picked','Note'],...(r.editedItems||[]).map(d=>[d.platform||'',d.order,d.inv||'',d.date||'',d.shopifySku,d.fusionSku,d.iq==null?'':d.iq,d.note])]},
     {n:'Fulfilled No PickList',d:[['Order No','Invoice No','Order Date','Shopify Fulfillment','Note'],...(r.fulfilNoPick||[]).map(d=>[d.order,d.inv||'',d.date||'',d.status,d.note])]},
     {n:'Picked Not Fulfilled',d:[['Order No','Invoice No','Order Date','Shopify Fulfillment','Note'],...(r.pickedNotFulfil||[]).map(d=>[d.order,d.inv||'',d.date||'',d.status,d.note])]},
