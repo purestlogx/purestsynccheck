@@ -148,6 +148,7 @@ nav{background:var(--bg-elev);border-bottom:1px solid var(--border);padding:0 32
 .dl-btn{padding:9px 18px;border-radius:var(--radius);background:var(--green);color:#fff;border:none;font-family:var(--font-body);font-size:13px;font-weight:600;cursor:pointer;transition:background .15s;}
 .dl-btn:hover{background:var(--moss-700);}
 .delta-row{display:flex;gap:8px;flex-wrap:wrap;}
+.dash-ranges{margin-top:6px;gap:6px;}
 .delta-chip{font-size:11px;padding:2px 8px;border-radius:4px;font-weight:600;}
 .delta-chip.better{background:var(--green-lt);color:var(--green);border:1px solid var(--green-bd);}
 .delta-chip.worse{background:var(--red-lt);color:var(--red);border:1px solid var(--red-bd);}
@@ -326,7 +327,7 @@ body:not(.admin-unlocked) .tag-remove{display:none!important;}
 </div>
 
 <nav>
-  <div class="nav-logo">Purest Nest <span>Sync Check</span> <span style="font-size:10px;opacity:.4;font-weight:400">v7.5</span></div>
+  <div class="nav-logo">Purest Nest <span>Sync Check</span> <span style="font-size:10px;opacity:.4;font-weight:400">v7.8</span></div>
   <div style="display:flex;align-items:center;gap:8px;">
     <button id="dark-toggle" onclick="toggleDark()" style="padding:5px 10px;border-radius:6px;border:1px solid var(--border);background:transparent;cursor:pointer;font-size:14px;" title="Toggle dark mode">🌙</button>
     <span id="user-email"></span>
@@ -357,6 +358,7 @@ body:not(.admin-unlocked) .tag-remove{display:none!important;}
 
     <div class="section-divider">Fusion (3PL)</div>
     <input type="file" id="ph-file-inspire" accept=".xlsx,.xls" style="display:none" onchange="handleFilePH('inspire',this)"/>
+    <input type="file" id="ph-file-invexport" accept=".xlsx,.xls,.csv" style="display:none" onchange="handleFilePH('invexport',this)"/>
     <div class="upload-grid cols-2">
       <label class="drop-zone" id="ph-zone-inspire" for="ph-file-inspire">
         <div class="drop-icon">📦</div>
@@ -364,6 +366,13 @@ body:not(.admin-unlocked) .tag-remove{display:none!important;}
         <div class="drop-sub">XLSX · pick-lists extract · reads the "Pick List Items" tab · covers Shopify, Shopee, Lazada &amp; TikTok</div>
         <div class="drop-filename" id="ph-name-inspire">Click to select file</div>
         <span class="drop-remove" onclick="removeFile('ph-zone-inspire','ph-file-inspire','ph')">✕ Remove</span>
+      </label>
+      <label class="drop-zone" id="ph-zone-invexport" for="ph-file-invexport">
+        <div class="drop-icon">🧾</div>
+        <div class="drop-label">Fusion Invoice Order Export</div>
+        <div class="drop-sub">XLSX · Invoice Number + Status · optional — adds Fusion Status to every tab</div>
+        <div class="drop-filename" id="ph-name-invexport">Optional</div>
+        <span class="drop-remove" onclick="removeFile('ph-zone-invexport','ph-file-invexport','ph')">✕ Remove</span>
       </label>
     </div>
 
@@ -500,6 +509,7 @@ body:not(.admin-unlocked) .tag-remove{display:none!important;}
     <div>
       <div class="dash-run-label">Last run · <span id="dash-market-label">—</span></div>
       <div class="dash-run-time" id="dash-time">—</div>
+      <div class="delta-row dash-ranges" id="dash-ranges"></div>
     </div>
     <div class="dash-header-right">
       <button class="dl-btn" onclick="exportFullReport()">⬇ Download Full Report</button>
@@ -776,7 +786,7 @@ body:not(.admin-unlocked) .tag-remove{display:none!important;}
 // ══ STATE ════════════════════════════════════════════════════════
 const state={
   market:'ph',
-  ph:{shopify1Data:null,shopify2Data:null,shopeeData:null,lazadaData:null,tiktokData:null,inspireData:null,results:null},
+  ph:{shopify1Data:null,shopify2Data:null,shopeeData:null,lazadaData:null,tiktokData:null,inspireData:null,invexportData:null,results:null},
   my:{njvData:null,shopify1Data:null,shopify2Data:null,shopify3Data:null,shopeeData:null,lazadaData:null,tiktokData:null,results:null},
 };
 let prevCounts={ph:null,my:null};
@@ -986,6 +996,7 @@ function switchMarket(mkt,btn){
       document.getElementById('dash-market-label').textContent=marketLabel(mkt);
       document.getElementById('tiles').innerHTML='';
       document.getElementById('delta-row').innerHTML='';
+      document.getElementById('dash-ranges').innerHTML='';
       document.getElementById('detail-label').textContent='Select a tile above to view details';
       document.getElementById('detail-table').innerHTML='<div class="empty-state">Click any tile to see the details</div>';
     }
@@ -1143,6 +1154,9 @@ function handleFilePH(type,input){
   const ext=file.name.split('.').pop().toLowerCase();
   if(type==='inspire'){
     readXLSX(file,done,null,names=>names.find(n=>/pick list items/i.test(n)));
+  } else if(type==='invexport'){
+    // Invoice numbers kept as text — TikTok ids are 18 digits and would round as numbers
+    ext==='csv'?readCSV(file,done):readXLSX(file,done,['Invoice Number']);
   } else if(type==='shopify1'||type==='shopify2'){
     ext==='csv'?readCSV(file,done):readXLSX(file,done,['Order ID','Id']);
   } else {
@@ -1210,7 +1224,7 @@ function runWithProgress(market,compareFn){
       pf.style.width='100%';
       setTimeout(()=>{
         pb.style.display='none';btn.textContent=runBtnLabel(market);btn.disabled=false;
-        renderDashboard(results,market);
+        renderDashboard(results,market,true);
         document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
         document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
         document.getElementById('page-dashboard').classList.add('active');
@@ -1322,11 +1336,18 @@ function comparePH(){
   // Fusion-only rows out of Short Picks — the pick list covers orders the platform export may
   // not, and those rows can show neither an order name, a platform, nor an order date.
   const platformSeen=new Set();
+  // Platform label for every order seen in a platform export, excluded ones included, so the
+  // Platform column is filled on every tab. Display only.
+  const seenPlatform={};
+  // Earliest/latest date per uploaded file, shown on the dashboard so a mismatched download
+  // window is obvious. Only ISO dates count — an unparsed format is skipped, never guessed.
+  const dateSpan={};
+  const addSpan=(f,d)=>{if(!/^\d{4}-\d{2}-\d{2}$/.test(d||''))return;const s=dateSpan[f]||(dateSpan[f]={from:d,to:d});if(d<s.from)s.from=d;if(d>s.to)s.to=d;};
   // Capture the created date for EVERY Shopify order, including excluded ones. The loop below
   // only walks `active`, so refunded/tag/risk orders would otherwise have no date anywhere and
   // their tabs could not show one. Excluded orders never enter shoMap/common, so this adds a
   // date only where there was none — it cannot change an existing row.
-  for(const r of shopRows){const k=keyOf(r.name);if(!k)continue;platformSeen.add(k);if(r.date&&!dateOf[k])dateOf[k]=r.date;}
+  for(const r of shopRows){addSpan('Shopify',r.date);const k=keyOf(r.name);if(!k)continue;platformSeen.add(k);if(!seenPlatform[k])seenPlatform[k]='Shopify';if(r.date&&!dateOf[k])dateOf[k]=r.date;}
   for(const r of active){const k=keyOf(r.name);if(!k){noIdSet.add(r.name);continue;}if(!shoMap[k])shoMap[k]={};shoMap[k][r.sku]=(shoMap[k][r.sku]||0)+r.qty;if(!platformOf[k])platformOf[k]='Shopify';if(r.date&&!dateOf[k])dateOf[k]=r.date;}
   // ── Merge marketplace platforms (Shopee/Lazada/TikTok): each order ID = Fusion invoice ──
   const mktStatusExcluded=[]; // {order, platform, status, note}
@@ -1340,12 +1361,14 @@ function comparePH(){
       const id=String(sfx(r,cfg.idCols)).trim();
       if(!id||id==='Platform unique order ID.')continue;
       platformSeen.add(id);
+      if(!seenPlatform[id])seenPlatform[id]=cfg.label;
       const status=String(sfx(r,cfg.statusCols)).trim().toLowerCase();
       if(status&&!seenStatus[id])seenStatus[id]=status;
       // Read the platform's own order-created date. Set BEFORE the exclusion check below so
       // cancelled orders keep a date too. normDate returns the raw string when it can't parse,
       // so an unexpected format passes through rather than being dropped.
       const mktDate=normDate(sfx(r,cfg.dateCols||[]));if(mktDate&&!dateOf[id])dateOf[id]=mktDate;
+      addSpan(cfg.label,mktDate);
       if(status&&[...exclSet].some(x=>status.includes(x))){
         if(!shoMap[id]&&!mktStatusExcluded.find(e=>e.order===id))mktStatusExcluded.push({order:id,platform:cfg.label,status,note:'Excluded — '+cfg.label+' order status'});
         continue;
@@ -1361,13 +1384,40 @@ function comparePH(){
   ingestMkt('phshopee');ingestMkt('phlazada');ingestMkt('phtiktok');
   // ── 3PL side: normalise both formats to { orderKey: { SKU: qty } }
   const fCol=(row,re)=>{const k=Object.keys(row).find(k=>re.test(String(k).trim()));return k===undefined?'':row[k];};
+  // ── Fusion order status from the optional Invoice Order Export: { invoice: status }.
+  // Display only — never used for matching, flags or counts. Columns found by header, not by
+  // letter, so a reordered export still works. One status per invoice (same on every SKU line).
+  // The same file is also Fusion's full order list for the order-level check (invNames): an
+  // order in it is "in Fusion" even before it reaches a pick list. It also gives each order's
+  // real marketplace — the pick list's Marketplace column is "N/A" on every row.
+  const fusionStatus={},fusionMkt={},fusionSession={};const invNames=new Set();
+  const invExpRows=isFusion?(state.ph.invexportData||[]):[];
+  if(invExpRows.length){
+    const ek=Object.keys(invExpRows[0]);
+    if(!ek.some(k=>/^invoice number$/i.test(String(k).trim()))||!ek.some(k=>/^status$/i.test(String(k).trim())))throw new Error('Invoice Order Export needs the "Invoice Number" and "Status" columns — check that the Fusion invoice order export was uploaded in that slot.');
+    for(const r of invExpRows){
+      const inv=String(fCol(r,/^invoice number$/i)||'').trim();
+      const st=String(fCol(r,/^status$/i)||'').trim();
+      if(!inv)continue;
+      invNames.add(inv);
+      if(st&&!fusionStatus[inv])fusionStatus[inv]=st;
+      const mp=mpLabel(fCol(r,/^marketplace$/i));if(mp&&!fusionMkt[inv])fusionMkt[inv]=mp;
+      const sd=normDate(fCol(r,/^session date$/i));if(sd&&!fusionSession[inv])fusionSession[inv]=sd;
+      addSpan('Invoice export',sd);
+    }
+    const sciInv=Object.keys(fusionStatus).filter(v=>/e\+/i.test(v));
+    if(sciInv.length)throw new Error('Invoice Order Export has '+sciInv.length+' invoice number'+(sciInv.length!==1?'s':'')+' in scientific notation (e.g. "'+sciInv[0]+'") — this happens when the file is opened and re-saved in Excel. Please download it again from Fusion and upload it without opening it.');
+  }
+  const statusLoaded=isFusion&&invExpRows.length>0;
   const insMap={};const tMap={};let shortPicks=[];const fusionPlatform={};
   for(const r of insRows){
     if(isFusion){
-      const mp=String(fCol(r,/^marketplace$/i)||'').trim().toLowerCase();
+      const mp=mpLabel(fCol(r,/^marketplace$/i)); // '' for Fusion's "N/A" placeholder
       const nm=String(fCol(r,/^invoice number$/i)||'').trim();
-      if(nm&&!fusionPlatform[nm]&&mp)fusionPlatform[nm]=mp.charAt(0).toUpperCase()+mp.slice(1);
-      if(nm){const pAt=normDate(fCol(r,/^picked at$/i));if(pAt&&(!pickDateOf[nm]||pAt<pickDateOf[nm]))pickDateOf[nm]=pAt;}
+      if(nm&&!fusionPlatform[nm]&&mp)fusionPlatform[nm]=mp;
+      const plD=String(fCol(r,/^pick list number$/i)||'').match(/PL-(\d{4})(\d{2})(\d{2})/);if(plD)addSpan('Pick list',plD[1]+'-'+plD[2]+'-'+plD[3]);
+      // ISO dates only — unpicked rows carry Fusion's "N/A", which showed as "N/A (picked)"
+      if(nm){const pAt=normDate(fCol(r,/^picked at$/i));if(/^\d{4}-\d{2}-\d{2}$/.test(pAt)&&(!pickDateOf[nm]||pAt<pickDateOf[nm]))pickDateOf[nm]=pAt;}
       const sk=String(fCol(r,/^sku$/i)||'').trim();
       const picked=+fCol(r,/^picked quantity$/i)||0;
       const toPick=+fCol(r,/^quantity to pick$/i)||0;
@@ -1392,10 +1442,13 @@ function comparePH(){
   // Orders where every line is qty 0 (manually edited to nothing) — no pick list is expected
   const zeroedOnly=onlyShoAll.filter(k=>Object.values(shoMap[k]).every(q=>q===0));
   const zeroedSet=new Set(zeroedOnly);
-  const onlySho=onlyShoAll.filter(k=>!zeroedSet.has(k));
-  const uploadedMps=new Set([['shopify',state.ph.shopify1Data||state.ph.shopify2Data],['shopee',state.ph.shopeeData],['lazada',state.ph.lazadaData],['tiktok',state.ph.tiktokData]].filter(x=>x[1]&&x[1].length).map(x=>x[0]));
-  const plat=key=>platformOf[key]||fusionPlatform[key]||'';
-  const orderDate=key=>dateOf[key]||(pickDateOf[key]?pickDateOf[key]+' (picked)':'');
+  // Platform orders on no pick list split two ways once the Invoice Order Export is loaded:
+  // not in Fusion at all (never synced — onlySho) vs in Fusion but not picked yet (notPicked,
+  // e.g. CSR Alerted / Waiting for Pick & Pack). Without the export, all stay in onlySho.
+  const onlySho=onlyShoAll.filter(k=>!zeroedSet.has(k)&&!invNames.has(k));
+  const notPicked=onlyShoAll.filter(k=>!zeroedSet.has(k)&&invNames.has(k));
+  const plat=key=>platformOf[key]||seenPlatform[key]||fusionMkt[key]||fusionPlatform[key]||'Unknown';
+  const orderDate=key=>dateOf[key]||(pickDateOf[key]?pickDateOf[key]+' (picked)':'')||(fusionSession[key]?fusionSession[key]+' (Fusion session)':'');
   // Short picks are collected during the 3PL loop above, before plat()/orderDate() exist.
   // Fill in platform and order date here so the sheet can show the order number and its
   // creation date (Shopify "Created at"; falls back to the pick date for marketplace orders).
@@ -1415,12 +1468,17 @@ function comparePH(){
   // Worth surfacing on its own rather than hiding: these are the ones coming back.
   const cancelledPicked=[...mktExcludedIds].filter(id=>insMap[id]&&Object.values(insMap[id]).some(q=>q>0)).sort()
     .map(id=>{const e=mktStatusExcluded.find(x=>x.order===id)||{};const skus=Object.entries(insMap[id]).filter(([,q])=>q>0);
-      return{order:id,platform:e.platform||fusionPlatform[id]||'',status:e.status||'',
+      return{order:id,platform:e.platform||plat(id),status:e.status||'',
         date:dateOf[id]||'',pickedDate:pickDateOf[id]||'',
         skus:skus.map(([s,q])=>s+' ×'+q).join(', '),qty:skus.reduce((a,[,q])=>a+q,0)};});
-  const onlyInsKeys=[...insNames].filter(n=>!shoNames.has(n)&&!excludedKeys.has(n)&&!allExcluded.has(n)&&!mktExcludedIds.has(n)&&(!fusionPlatform[n]||uploadedMps.has(String(fusionPlatform[n]).toLowerCase()))).sort();
+  // Every Fusion order (pick list + Invoice Order Export) that no uploaded platform export has,
+  // whatever its marketplace. Until v7.6 orders from marketplaces with no uploaded export were
+  // hidden here — but that test read the pick list's Marketplace column, which is "N/A" on
+  // every row, so it hid ALL Fusion-only orders, Shopify ones included. Use the Platform
+  // column to narrow down when only some platform exports were uploaded.
+  const onlyInsKeys=[...new Set([...insNames,...invNames])].filter(n=>!shoNames.has(n)&&!excludedKeys.has(n)&&!allExcluded.has(n)&&!mktExcludedIds.has(n)).sort();
   const onlyIns=onlyInsKeys.map(disp);
-  const onlyInsRows=onlyInsKeys.map(k=>({order:disp(k),inv:k,platform:fusionPlatform[k]||'',date:orderDate(k)}));
+  const onlyInsRows=onlyInsKeys.map(k=>({order:disp(k),inv:k,platform:plat(k),date:orderDate(k)}));
   const missing=[],extra=[],match=[],mismatch=[],editedItems=[];
   for(const k of zeroedOnly){editedItems.push({order:disp(k),inv:isFusion?k:'',date:orderDate(k),platform:platformOf[k]||'',shopifySku:Object.keys(shoMap[k]).join(' + '),fusionSku:'—',iq:'',note:'All lines qty 0 (manually edited order) — no pick list expected'});}
   const pushMissing=(key,sku,sq,issue)=>{
@@ -1467,7 +1525,9 @@ function comparePH(){
     }
     for(const sku of[...insSet].filter(s=>!explained.has(s))){if(nk(sku).startsWith('BUNDLE -'))continue;extra.push({order:disp(key),inv:isFusion?key:'',date:orderDate(key),platform:plat(key),inspireSku:sku,iq:insD[sku],note:'In '+srcName+', not ordered on platform'});}
   }
-  const onlyShoRows=onlySho.map(k=>{const entries=Object.entries(shoMap[k]);return{order:disp(k),inv:isFusion?k:'',date:orderDate(k),platform:platformOf[k]||'',skus:entries.map(e=>e[0]+' ×'+e[1]).join(', '),totalSkus:entries.length,fulfil:fulfilStatus[disp(k)]||''};});
+  const shoRow=k=>{const entries=Object.entries(shoMap[k]);return{order:disp(k),inv:isFusion?k:'',date:orderDate(k),platform:platformOf[k]||'',skus:entries.map(e=>e[0]+' ×'+e[1]).join(', '),totalSkus:entries.length,fulfil:fulfilStatus[disp(k)]||''};};
+  const onlyShoRows=onlySho.map(shoRow),notPickedRows=notPicked.map(shoRow);
+  const dateRanges=['Pick list','Invoice export','Shopify','Shopee','Lazada','TikTok'].filter(f=>dateSpan[f]).map(f=>({file:f,...dateSpan[f]}));
   // ── Fulfillment sync cross-check: Shopify fulfillment status vs pick list presence ──
   const fulfilNoPick=[],pickedNotFulfil=[];
   for(const name of Object.keys(fulfilStatus)){
@@ -1481,12 +1541,18 @@ function comparePH(){
   // refunded / tagExcluded / riskExcluded are plain arrays of Shopify order NAMES, so their
   // tabs look the date up here rather than the arrays being reshaped into objects.
   const excludedDates=Object.fromEntries([...allExcluded].map(n=>[n,orderDate(keyOf(n))]).filter(([,d])=>d));
-  return{type:'ph',isFusion,shortPicks,shortPicksSkipped,editedItems,fulfilNoPick,pickedNotFulfil,excludedDates,noIdOrders:[...noIdSet].sort(),refunded:[...refunded].sort(),tagExcluded:[...tagExcludedPH].sort(),tagExcludedLabels:Object.fromEntries(phTagExcludedMap),riskExcluded:[...riskExcludedPH].sort(),riskExcludedLabels:Object.fromEntries(phRiskExcludedMap),shoTotal:shoNames.size+allExcluded.size,shoActive:shoNames.size,insTotal:insNames.size,common:common.length,onlySho:onlySho.map(disp),onlyIns,onlyInsRows,onlyShoRows,mktStatusExcluded,mktStatusExcludedCount:mktStatusExcluded.length,cancelledPicked,platformOf,fusionPlatform,missing,extra,match,mismatch};
+  // Same idea for the Fusion status on those three tabs: order name → invoice key.
+  const excludedInv=Object.fromEntries([...allExcluded].map(n=>[n,keyOf(n)]).filter(([,k])=>k));
+  return{type:'ph',isFusion,fusionStatus,statusLoaded,excludedInv,notPicked:notPicked.map(disp),notPickedRows,dateRanges,shortPicks,shortPicksSkipped,editedItems,fulfilNoPick,pickedNotFulfil,excludedDates,noIdOrders:[...noIdSet].sort(),refunded:[...refunded].sort(),tagExcluded:[...tagExcludedPH].sort(),tagExcludedLabels:Object.fromEntries(phTagExcludedMap),riskExcluded:[...riskExcludedPH].sort(),riskExcludedLabels:Object.fromEntries(phRiskExcludedMap),shoTotal:shoNames.size+allExcluded.size,shoActive:shoNames.size,insTotal:insNames.size,common:common.length,onlySho:onlySho.map(disp),onlyIns,onlyInsRows,onlyShoRows,mktStatusExcluded,mktStatusExcludedCount:mktStatusExcluded.length,cancelledPicked,platformOf,fusionPlatform,missing,extra,match,mismatch};
 }
 
 // ══ PH MARKETPLACE CONFIG ═════════════════════════════════════════
 // MKT_CFG + decodeMktCustomBundle are used inside comparePH to ingest
 // Shopee/Lazada/TikTok order files and PH's own custom bundle rules.
+// Marketplace name as written in Fusion files ("shopee", "tiktok", "N/A") → the label the
+// platform exports use, so one Platform search term matches every row. '' when unknown.
+const MP_LABEL={shopify:'Shopify',shopee:'Shopee',lazada:'Lazada',tiktok:'TikTok'};
+function mpLabel(v){const k=String(v||'').trim().toLowerCase();if(!k||k==='n/a')return '';return MP_LABEL[k]||k.charAt(0).toUpperCase()+k.slice(1);}
 const MKT_CFG={
   phshopee:{label:'Shopee',mp:'shopee',idCols:['Order ID'],skuCols:['SKU Reference No.','Seller SKU'],qtyCols:['Quantity'],statusCols:['Order Status','Return / Refund Status'],dateCols:['Order Creation Date'],skipDescRow:false},
   phlazada:{label:'Lazada',mp:'lazada',idCols:['orderNumber'],skuCols:['sellerSku'],qtyCols:['Quantity'],rowIsOneUnit:true,statusCols:['status'],dateCols:['createTime'],skipDescRow:false},
@@ -1809,14 +1875,20 @@ function makeGroup(badgeCls,badgeTxt,desc,tiles){
   tiles.forEach(t=>row.appendChild(t));g.appendChild(row);return g;
 }
 
-function renderDashboard(r,market){
+function renderDashboard(r,market,fresh){
   curMarket=market;
   document.getElementById('dash-time').textContent=new Date().toLocaleString();
   try{localStorage.setItem('icLastMarket',market);}catch(e){}
   document.getElementById('dash-market-label').textContent=marketLabel(market);
+  // Date range of each uploaded file — mismatched download windows cause false order-level flags
+  document.getElementById('dash-ranges').innerHTML=(r.dateRanges||[]).map(x=>`<span class="delta-chip same">${x.file}: ${x.from===x.to?x.from:x.from+' → '+x.to}</span>`).join('');
 
   const isMkt=r.type==='mkt';
-  const issueCounts=(market==='ph'||isMkt)
+  const isPHRun=market==='ph'&&!isMkt;
+  // PH also counts Fusion-only and not-picked orders as issues (v7.7)
+  const issueCounts=isPHRun
+    ?{mismatch:r.mismatch.length,missing:r.missing.length,extra:r.extra.length,onlySho:r.onlySho.length,notPicked:(r.notPicked||[]).length,onlyIns:(r.onlyIns||[]).length}
+    :isMkt
     ?{mismatch:r.mismatch.length,missing:r.missing.length,extra:r.extra.length,onlySho:r.onlySho.length}
     :{mismatch:r.mismatch.length,missing:r.missing.length,extra:r.extra.length,onlyPlat:r.onlyPlat.length};
   const totalIssues=Object.values(issueCounts).reduce((a,b)=>a+b,0);
@@ -1840,6 +1912,11 @@ function renderDashboard(r,market){
     if(r.editedItems&&r.editedItems.length)parts.push(`<strong>${r.editedItems.length}</strong> edited item${r.editedItems.length!==1?'s':''} to review`);
     if(r.noIdOrders&&r.noIdOrders.length)parts.push(`<strong>${r.noIdOrders.length}</strong> order${r.noIdOrders.length!==1?'s':''} skipped (no Shopify Id)`);
     if(market==='my'){if(r.onlyPlat.length)parts.push(`<strong>${r.onlyPlat.length} order${r.onlyPlat.length!==1?'s':''} only in platforms</strong>`);}
+    else if(isPHRun){
+      if(r.onlySho.length)parts.push(`<strong>${r.onlySho.length} order${r.onlySho.length!==1?'s':''} ${r.statusLoaded?'not in Fusion':'only in Platforms'}</strong>`);
+      if((r.notPicked||[]).length)parts.push(`<strong>${r.notPicked.length}</strong> in Fusion but not picked`);
+      if((r.onlyIns||[]).length)parts.push(`<strong>${r.onlyIns.length} order${r.onlyIns.length!==1?'s':''} only in Fusion</strong>`);
+    }
     else{const oLbl=isMkt?(r.label+' side'):'Platforms';if(r.onlySho.length)parts.push(`<strong>${r.onlySho.length} order${r.onlySho.length!==1?'s':''} only in ${oLbl}</strong>`);}
     bannerText.innerHTML=parts.join(', ')+' — review the details below.';
   }
@@ -1863,7 +1940,10 @@ function renderDashboard(r,market){
   prevCounts[market]=issueCounts;
   localStorage.setItem('icPrevCounts2',JSON.stringify(prevCounts));
   try{
-    // Save current issue order keys for "new" detection next run
+    // Save current issue order keys for "new" detection next run. Only a fresh audit moves the
+    // previous run's keys into the baseline (icPrevKeys_) — this function also re-renders on
+    // market switch and page reload, and those must not make a run compare against itself.
+    if(fresh){const last=localStorage.getItem('icLastKeys_'+market);if(last)localStorage.setItem('icPrevKeys_'+market,last);else localStorage.removeItem('icPrevKeys_'+market);}
     const curKeys={
       mismatch:new Set(r.mismatch.map(d=>d.order+'|'+d.shopifySku+'|'+d.inspireSku)),
       missing: new Set(r.missing.map(d=>d.order+'|'+d.shopifySku)),
@@ -1886,7 +1966,10 @@ function renderDashboard(r,market){
   } else if(market==='ph'){
     el.appendChild(makeGroup('good','Matched','SKU and quantity correctly synced on both sides',[makeTile({label:'QTY Match',val:r.match.length,cls:'green',key:'match'})]));
     el.appendChild(makeGroup('sku','SKU Level','Same order on both sides, but specific SKUs or quantities differ',[makeTile({label:'QTY Mismatch',val:r.mismatch.length,cls:'red',key:'mismatch'}),makeTile({label:'Missing from Fusion',val:r.missing.length,cls:'red',key:'missing'}),makeTile({label:'Extra in Fusion',val:r.extra.length,cls:'amber',key:'extra'}),...(r.editedItems&&r.editedItems.length?[makeTile({label:'Edited Items (review)',val:r.editedItems.length,cls:'amber',key:'editedItems'})]:[]),...(r.shortPicks&&r.shortPicks.length?[makeTile({label:'Short Picks (Fusion)',val:r.shortPicks.length,cls:'amber',key:'shortPicks'})]:[])]));
-    el.appendChild(makeGroup('order','Order Level','Entire order missing from one side completely',[makeTile({label:'Only in Platforms',val:r.onlySho.length,cls:'blue',key:'onlySho'}),makeTile({label:'Only in Fusion',val:r.onlyIns.length,cls:'purple',key:'onlyIns'})]));
+    el.appendChild(makeGroup('order','Order Level','Entire order missing from one side completely',[
+      r.statusLoaded?makeTile({label:'Not in Fusion',val:r.onlySho.length,cls:'red',key:'onlySho'}):makeTile({label:'Only in Platforms',val:r.onlySho.length,cls:'blue',key:'onlySho'}),
+      ...(r.statusLoaded?[makeTile({label:'In Fusion · Not Picked',val:(r.notPicked||[]).length,cls:'amber',key:'notPicked'})]:[]),
+      makeTile({label:'Only in Fusion',val:r.onlyIns.length,cls:'purple',key:'onlyIns'})]));
     el.appendChild(makeGroup('fsync','Fulfillment Sync','Shopify fulfillment status vs Fusion pick list presence',[makeTile({label:'Fulfilled · No Pick List',val:(r.fulfilNoPick||[]).length,cls:'red',key:'fulfilNoPick'}),makeTile({label:'Picked · Not Fulfilled',val:(r.pickedNotFulfil||[]).length,cls:'amber',key:'pickedNotFulfil'})]));
     el.appendChild(makeGroup('excl','Excluded','Orders not included in this audit',[makeTile({label:'Refunded (excl.)',val:r.refunded.length,cls:'amber',key:'refunded'}),makeTile({label:'Tag Excluded (excl.)',val:(r.tagExcluded||[]).length,cls:'amber',key:'tagExcluded'}),makeTile({label:'Risk Excluded (excl.)',val:(r.riskExcluded||[]).length,cls:'amber',key:'riskExcluded'}),...(r.mktStatusExcludedCount?[makeTile({label:'Marketplace Status (excl.)',val:r.mktStatusExcludedCount,cls:'amber',key:'mktStatusExcluded'})]:[]),...((r.cancelledPicked||[]).length?[makeTile({label:'Cancelled After Picking',val:r.cancelledPicked.length,cls:'red',key:'cancelledPicked'})]:[])]));
     showView('mismatch');
@@ -1899,6 +1982,13 @@ function renderDashboard(r,market){
   }
 }
 
+// Fusion Status cell for PH tabs: blank when no Invoice Order Export was uploaded, so a blank
+// never means "missing"; "Not in export" when the file is loaded but lacks that invoice.
+function phStatus(r,inv){if(!r||!r.statusLoaded)return '';return (inv&&r.fusionStatus[inv])||'Not in export';}
+// Invoice No for the Refunded / Tag / Risk tabs, which list Shopify order names: the Shopify
+// "Id" is Fusion's invoice number. Blank for the legacy Inspire format, like the other tabs.
+function phExInv(r,n){return (r&&r.isFusion&&r.excludedInv&&r.excludedInv[n])||'';}
+
 function showView(key){
   curView=key;curPage=1;curSearch='';
   document.querySelectorAll('.tile').forEach(t=>t.classList.toggle('active-tile',t.dataset.key===key));
@@ -1907,7 +1997,7 @@ function showView(key){
 
 function isNewRow(key,type){
   try{
-    const saved=localStorage.getItem('icLastKeys_'+curMarket);
+    const saved=localStorage.getItem('icPrevKeys_'+curMarket);
     if(!saved)return false;
     const keys=JSON.parse(saved);
     return keys[type]&&!keys[type].includes(key);
@@ -1927,21 +2017,22 @@ function renderTable(){
     shortPicks:{title:'⚠️ Short Picks (Fusion)',cols:['Order / Invoice','SKU','To Pick','Picked','Reason'],rows:(r.shortPicks||[]).map(d=>[d.order,d.sku,d.toPick,d.picked,d.reason||''])},
     statusExcluded:{title:'🚫 Status Excluded',cols:['Order / Invoice','Status','Note'],rows:(r.statusExcluded||[]).map(d=>[d.order,d.status,d.note])},
   }:isPH?{
-    match:   {title:'✅ QTY Match',           cols:['Platform','Order No','Invoice No','Order Date','Platform SKU','Fusion SKU','QTY'],rows:r.match.map(d=>[d.platform||'',d.order,d.inv||'',d.date||'',d.shopifySku,d.inspireSku,d.sq])},
-    mismatch:{title:'❌ QTY Mismatch',         cols:['Platform','Order No','Invoice No','Order Date','Platform SKU','Fusion SKU','Order QTY','Fusion QTY','Diff','Remark'],rows:r.mismatch.map(d=>[d.platform||'',d.order,d.inv||'',d.date||'',d.shopifySku,d.inspireSku,d.sq,d.iq,d.diff,d.remark])},
-    missing: {title:'🔴 Missing from Fusion', cols:['Platform','Order No','Invoice No','Order Date','Platform SKU','Order QTY','Issue'],rows:r.missing.map(d=>[d.platform||'',d.order,d.inv||'',d.date||'',d.shopifySku,d.sq,d.issue])},
-    extra:   {title:'🟡 Extra in Fusion',     cols:['Platform','Order No','Invoice No','Order Date','Fusion SKU','Fusion QTY','Note'],rows:r.extra.map(d=>[d.platform||'',d.order,d.inv||'',d.date||'',d.inspireSku,d.iq,d.note])},
-    onlySho: {title:'📋 Only in Platforms',     cols:['Platform','Order No','Invoice No','Order Date','Fulfillment','SKUs','# SKUs'],rows:r.onlyShoRows.map(d=>[d.platform||'',d.order,d.inv||'',d.date||'',d.fulfil||'',d.skus,d.totalSkus])},
-    onlyIns: {title:'📋 Only in Fusion',      cols:['Platform','Order No','Invoice No','Order Date','Note'],rows:(r.onlyInsRows||[]).map(d=>[d.platform||'',d.order||'',d.inv,d.date||'','No matching platform order'])},
-    shortPicks:{title:'⚠️ Short Picks (Fusion)',cols:['Platform','Order No','Invoice No','Order Date','SKU','To Pick','Picked','Reason'],rows:(r.shortPicks||[]).map(d=>[d.platform||'',d.order,d.inv||'',d.date||'',d.sku,d.toPick,d.picked,d.reason||''])},
-    editedItems:{title:'✏️ Edited Items (review)',cols:['Platform','Order No','Invoice No','Order Date','Platform SKU','Fusion SKU','Fusion Picked','Note'],rows:(r.editedItems||[]).map(d=>[d.platform||'',d.order,d.inv||'',d.date||'',d.shopifySku,d.fusionSku,d.iq==null?'':d.iq,d.note])},
-    fulfilNoPick:{title:'🚨 Fulfilled · No Pick List',cols:['Order No','Invoice No','Order Date','Shopify Fulfillment','Note'],rows:(r.fulfilNoPick||[]).map(d=>[d.order,d.inv||'',d.date||'',d.status,d.note])},
-    pickedNotFulfil:{title:'⏳ Picked · Not Fulfilled',cols:['Order No','Invoice No','Order Date','Shopify Fulfillment','Note'],rows:(r.pickedNotFulfil||[]).map(d=>[d.order,d.inv||'',d.date||'',d.status,d.note])},
-    refunded:{title:'🚫 Refunded (Excluded)',  cols:['Order No','Order Date','Note'],rows:r.refunded.map(n=>[n,(r.excludedDates&&r.excludedDates[n])||'','Excluded — refunded'])},
-    tagExcluded:{title:'🏷️ Tag Excluded',cols:['Order No','Order Date','Matched Tag','Note'],rows:(r.tagExcluded||[]).map(n=>[n,(r.excludedDates&&r.excludedDates[n])||'',(r.tagExcludedLabels&&r.tagExcludedLabels[n])||'','Excluded — matched order tag'])},
-    riskExcluded:{title:'⚠️ Risk Excluded',cols:['Order No','Order Date','Risk Level','Note'],rows:(r.riskExcluded||[]).map(n=>[n,(r.excludedDates&&r.excludedDates[n])||'',(r.riskExcludedLabels&&r.riskExcludedLabels[n])||'','Excluded — risk level'])},
-    mktStatusExcluded:{title:'🚫 Marketplace Status Excluded',cols:['Platform','Order No','Order Date','Status','Note'],rows:(r.mktStatusExcluded||[]).map(d=>[d.platform,d.order,d.date||'',d.status,d.note])},
-    cancelledPicked:{title:'📦 Cancelled After Picking',cols:['Platform','Order No','Order Date','Status','Picked Date','SKUs Picked','Total QTY'],rows:(r.cancelledPicked||[]).map(d=>[d.platform,d.order,d.date||'',d.status,d.pickedDate||'',d.skus,d.qty])},
+    match:   {title:'✅ QTY Match',           cols:['Platform','Order No','Invoice No','Order Date','Fusion Status','Platform SKU','Fusion SKU','QTY'],rows:r.match.map(d=>[d.platform||'',d.order,d.inv||'',d.date||'',phStatus(r,d.inv),d.shopifySku,d.inspireSku,d.sq])},
+    mismatch:{title:'❌ QTY Mismatch',         cols:['Platform','Order No','Invoice No','Order Date','Fusion Status','Platform SKU','Fusion SKU','Order QTY','Fusion QTY','Diff','Remark'],rows:r.mismatch.map(d=>[d.platform||'',d.order,d.inv||'',d.date||'',phStatus(r,d.inv),d.shopifySku,d.inspireSku,d.sq,d.iq,d.diff,d.remark])},
+    missing: {title:'🔴 Missing from Fusion', cols:['Platform','Order No','Invoice No','Order Date','Fusion Status','Platform SKU','Order QTY','Issue'],rows:r.missing.map(d=>[d.platform||'',d.order,d.inv||'',d.date||'',phStatus(r,d.inv),d.shopifySku,d.sq,d.issue])},
+    extra:   {title:'🟡 Extra in Fusion',     cols:['Platform','Order No','Invoice No','Order Date','Fusion Status','Fusion SKU','Fusion QTY','Note'],rows:r.extra.map(d=>[d.platform||'',d.order,d.inv||'',d.date||'',phStatus(r,d.inv),d.inspireSku,d.iq,d.note])},
+    onlySho: {title:r.statusLoaded?'🚨 Not in Fusion':'📋 Only in Platforms',cols:['Platform','Order No','Invoice No','Order Date','Fusion Status','Fulfillment','SKUs','# SKUs'],rows:r.onlyShoRows.map(d=>[d.platform||'',d.order,d.inv||'',d.date||'',phStatus(r,d.inv),d.fulfil||'',d.skus,d.totalSkus])},
+    notPicked:{title:'⏸️ In Fusion · Not Picked',cols:['Platform','Order No','Invoice No','Order Date','Fusion Status','Fulfillment','SKUs','# SKUs'],rows:(r.notPickedRows||[]).map(d=>[d.platform||'',d.order,d.inv||'',d.date||'',phStatus(r,d.inv),d.fulfil||'',d.skus,d.totalSkus])},
+    onlyIns: {title:'📋 Only in Fusion',      cols:['Platform','Order No','Invoice No','Order Date','Fusion Status','Note'],rows:(r.onlyInsRows||[]).map(d=>[d.platform||'',d.order||'',d.inv,d.date||'',phStatus(r,d.inv),'No matching platform order'])},
+    shortPicks:{title:'⚠️ Short Picks (Fusion)',cols:['Platform','Order No','Invoice No','Order Date','Fusion Status','SKU','To Pick','Picked','Reason'],rows:(r.shortPicks||[]).map(d=>[d.platform||'',d.order,d.inv||'',d.date||'',phStatus(r,d.inv),d.sku,d.toPick,d.picked,d.reason||''])},
+    editedItems:{title:'✏️ Edited Items (review)',cols:['Platform','Order No','Invoice No','Order Date','Fusion Status','Platform SKU','Fusion SKU','Fusion Picked','Note'],rows:(r.editedItems||[]).map(d=>[d.platform||'',d.order,d.inv||'',d.date||'',phStatus(r,d.inv),d.shopifySku,d.fusionSku,d.iq==null?'':d.iq,d.note])},
+    fulfilNoPick:{title:'🚨 Fulfilled · No Pick List',cols:['Order No','Invoice No','Order Date','Fusion Status','Shopify Fulfillment','Note'],rows:(r.fulfilNoPick||[]).map(d=>[d.order,d.inv||'',d.date||'',phStatus(r,d.inv),d.status,d.note])},
+    pickedNotFulfil:{title:'⏳ Picked · Not Fulfilled',cols:['Order No','Invoice No','Order Date','Fusion Status','Shopify Fulfillment','Note'],rows:(r.pickedNotFulfil||[]).map(d=>[d.order,d.inv||'',d.date||'',phStatus(r,d.inv),d.status,d.note])},
+    refunded:{title:'🚫 Refunded (Excluded)',  cols:['Order No','Invoice No','Order Date','Fusion Status','Note'],rows:r.refunded.map(n=>[n,phExInv(r,n),(r.excludedDates&&r.excludedDates[n])||'',phStatus(r,r.excludedInv&&r.excludedInv[n]),'Excluded — refunded'])},
+    tagExcluded:{title:'🏷️ Tag Excluded',cols:['Order No','Invoice No','Order Date','Fusion Status','Matched Tag','Note'],rows:(r.tagExcluded||[]).map(n=>[n,phExInv(r,n),(r.excludedDates&&r.excludedDates[n])||'',phStatus(r,r.excludedInv&&r.excludedInv[n]),(r.tagExcludedLabels&&r.tagExcludedLabels[n])||'','Excluded — matched order tag'])},
+    riskExcluded:{title:'⚠️ Risk Excluded',cols:['Order No','Invoice No','Order Date','Fusion Status','Risk Level','Note'],rows:(r.riskExcluded||[]).map(n=>[n,phExInv(r,n),(r.excludedDates&&r.excludedDates[n])||'',phStatus(r,r.excludedInv&&r.excludedInv[n]),(r.riskExcludedLabels&&r.riskExcludedLabels[n])||'','Excluded — risk level'])},
+    mktStatusExcluded:{title:'🚫 Marketplace Status Excluded',cols:['Platform','Order No','Order Date','Fusion Status','Status','Note'],rows:(r.mktStatusExcluded||[]).map(d=>[d.platform,d.order,d.date||'',phStatus(r,d.order),d.status,d.note])},
+    cancelledPicked:{title:'📦 Cancelled After Picking',cols:['Platform','Order No','Order Date','Fusion Status','Status','Picked Date','SKUs Picked','Total QTY'],rows:(r.cancelledPicked||[]).map(d=>[d.platform,d.order,d.date||'',phStatus(r,d.order),d.status,d.pickedDate||'',d.skus,d.qty])},
   }:{
     match:   {title:'✅ QTY Match',         cols:['Platform','Order','Order Date','NJV Status','SKU','QTY'],rows:r.match.map(d=>[d.platform,d.order,d.date||'',(r.njvStatus&&r.njvStatus[d.order])||'',d.platformSku,d.platformQty])},
     mismatch:{title:'❌ QTY Mismatch',       cols:['Platform','Order','Order Date','NJV Status','SKU','Platform QTY','NJV QTY','Diff','Remark'],rows:r.mismatch.map(d=>[d.platform,d.order,d.date||'',(r.njvStatus&&r.njvStatus[d.order])||'',d.platformSku,d.platformQty,d.njvQty,d.diff,d.remark])},
@@ -1963,7 +2054,7 @@ function renderTable(){
   const paged=filtered.slice((curPage-1)*PAGE,curPage*PAGE);
   if(!filtered.length){wrap.innerHTML=`<div class="empty-state">No items in this category</div>`;return;}
   const isMM=curView==='mismatch';
-  const diffColIdx=isMM?(isMkt?5:isPH?8:7):-1;
+  const diffColIdx=isMM?(isMkt?5:isPH?9:7):-1;
   wrap.innerHTML=`
     <div class="table-toolbar">
       <div class="table-title-txt">${filtered.length} item${filtered.length!==1?'s':''}</div>
@@ -1976,10 +2067,19 @@ function renderTable(){
       <tbody>${paged.map((row,ri)=>{
         // Check if this row is new vs last run (column offset differs: PH prepends Platform)
         let rowKey='',rowType='';
-        const o=(isPH&&!isMkt)?2:(r&&r.type==='my')?1:0; // PH leads Platform+Order Date (offset 2); MY inserts Order Date after Order (offset 1)
+        if(isPH&&!isMkt){
+          // PH rows: Platform, Order No, Invoice No, Order Date, Fusion Status, then SKU columns.
+          // Keys must match what renderDashboard saves: order|platform SKU|Fusion SKU (mismatch),
+          // order|platform SKU (missing), order|Fusion SKU (extra).
+          if(curView==='mismatch'){rowKey=row[1]+'|'+row[5]+'|'+row[6];rowType='mismatch';}
+          else if(curView==='missing'){rowKey=row[1]+'|'+row[5];rowType='missing';}
+          else if(curView==='extra'){rowKey=row[1]+'|'+row[5];rowType='extra';}
+        }else{
+        const o=(r&&r.type==='my')?1:0; // MY inserts Order Date after Order (offset 1)
         if(curView==='mismatch'){rowKey=row[1+o]+'|'+row[2+o]+'|'+row[3+o];rowType='mismatch';}
         else if(curView==='missing'){rowKey=row[1+o]+'|'+row[2+o];rowType='missing';}
         else if(curView==='extra'){rowKey=row[1+o]+'|'+row[2+o];rowType='extra';}
+        }
         const isNew=rowKey&&isNewRow(rowKey,rowType);
         return `<tr>${row.map((cell,i)=>{
         if(i===diffColIdx){const n=Number(cell);return`<td class="${n<0?'diff-less':'diff-more'}">${n>0?'+'+n:n}</td>`;}
@@ -2009,21 +2109,22 @@ function exportView(){
     shortPicks:{n:'Short_Picks',c:['Order/Invoice','SKU','To Pick','Picked','Reason'],d:(r.shortPicks||[]).map(d=>[d.order,d.sku,d.toPick,d.picked,d.reason||''])},
     statusExcluded:{n:'Status_Excluded',c:['Order/Invoice','Status','Note'],d:(r.statusExcluded||[]).map(d=>[d.order,d.status,d.note])},
   }:isPH?{
-    match:   {n:'QTY_Match',   c:['Platform','Order No','Invoice No','Order Date','Platform SKU','Fusion SKU','QTY'],d:r.match.map(d=>[d.platform||'',d.order,d.inv||'',d.date||'',d.shopifySku,d.inspireSku,d.sq])},
-    mismatch:{n:'QTY_Mismatch',c:['Platform','Order No','Invoice No','Order Date','Platform SKU','Fusion SKU','Order QTY','Fusion QTY','Diff','Remark'],d:r.mismatch.map(d=>[d.platform||'',d.order,d.inv||'',d.date||'',d.shopifySku,d.inspireSku,d.sq,d.iq,d.diff,d.remark])},
-    missing: {n:'Missing',     c:['Platform','Order No','Invoice No','Order Date','Platform SKU','Order QTY','Issue'],d:r.missing.map(d=>[d.platform||'',d.order,d.inv||'',d.date||'',d.shopifySku,d.sq,d.issue])},
-    extra:   {n:'Extra',       c:['Platform','Order No','Invoice No','Order Date','Fusion SKU','Fusion QTY','Note'],d:r.extra.map(d=>[d.platform||'',d.order,d.inv||'',d.date||'',d.inspireSku,d.iq,d.note])},
-    onlySho: {n:'Only_Platform',c:['Platform','Order No','Invoice No','Order Date','Fulfillment','SKUs','# SKUs'],d:r.onlyShoRows.map(d=>[d.platform||'',d.order,d.inv||'',d.date||'',d.fulfil||'',d.skus,d.totalSkus])},
-    onlyIns: {n:'Only_Fusion',c:['Platform','Order No','Invoice No','Order Date','Note'],d:(r.onlyInsRows||[]).map(d=>[d.platform||'',d.order||'',d.inv,d.date||'','No matching order'])},
-    shortPicks:{n:'Short_Picks',c:['Platform','Order No','Invoice No','Order Date','SKU','To Pick','Picked','Reason'],d:(r.shortPicks||[]).map(d=>[d.platform||'',d.order,d.inv||'',d.date||'',d.sku,d.toPick,d.picked,d.reason||''])},
-    editedItems:{n:'Edited_Items',c:['Platform','Order No','Invoice No','Order Date','Platform SKU','Fusion SKU','Fusion Picked','Note'],d:(r.editedItems||[]).map(d=>[d.platform||'',d.order,d.inv||'',d.date||'',d.shopifySku,d.fusionSku,d.iq==null?'':d.iq,d.note])},
-    fulfilNoPick:{n:'Fulfilled_No_PickList',c:['Order No','Invoice No','Order Date','Shopify Fulfillment','Note'],d:(r.fulfilNoPick||[]).map(d=>[d.order,d.inv||'',d.date||'',d.status,d.note])},
-    pickedNotFulfil:{n:'Picked_Not_Fulfilled',c:['Order No','Invoice No','Order Date','Shopify Fulfillment','Note'],d:(r.pickedNotFulfil||[]).map(d=>[d.order,d.inv||'',d.date||'',d.status,d.note])},
-    refunded:{n:'Refunded',    c:['Order No','Order Date','Note'],d:r.refunded.map(n=>[n,(r.excludedDates&&r.excludedDates[n])||'','Excluded'])},
-    tagExcluded:{n:'Tag_Excluded',c:['Order No','Order Date','Matched Tag','Note'],d:(r.tagExcluded||[]).map(n=>[n,(r.excludedDates&&r.excludedDates[n])||'',(r.tagExcludedLabels&&r.tagExcludedLabels[n])||'','Excluded — matched order tag'])},
-    riskExcluded:{n:'Risk_Excluded',c:['Order No','Order Date','Risk Level','Note'],d:(r.riskExcluded||[]).map(n=>[n,(r.excludedDates&&r.excludedDates[n])||'',(r.riskExcludedLabels&&r.riskExcludedLabels[n])||'','Excluded — risk level'])},
-    mktStatusExcluded:{n:'Marketplace_Status_Excluded',c:['Platform','Order No','Order Date','Status','Note'],d:(r.mktStatusExcluded||[]).map(d=>[d.platform,d.order,d.date||'',d.status,d.note])},
-    cancelledPicked:{n:'Cancelled_After_Picking',c:['Platform','Order No','Order Date','Status','Picked Date','SKUs Picked','Total QTY'],d:(r.cancelledPicked||[]).map(d=>[d.platform,d.order,d.date||'',d.status,d.pickedDate||'',d.skus,d.qty])},
+    match:   {n:'QTY_Match',   c:['Platform','Order No','Invoice No','Order Date','Fusion Status','Platform SKU','Fusion SKU','QTY'],d:r.match.map(d=>[d.platform||'',d.order,d.inv||'',d.date||'',phStatus(r,d.inv),d.shopifySku,d.inspireSku,d.sq])},
+    mismatch:{n:'QTY_Mismatch',c:['Platform','Order No','Invoice No','Order Date','Fusion Status','Platform SKU','Fusion SKU','Order QTY','Fusion QTY','Diff','Remark'],d:r.mismatch.map(d=>[d.platform||'',d.order,d.inv||'',d.date||'',phStatus(r,d.inv),d.shopifySku,d.inspireSku,d.sq,d.iq,d.diff,d.remark])},
+    missing: {n:'Missing',     c:['Platform','Order No','Invoice No','Order Date','Fusion Status','Platform SKU','Order QTY','Issue'],d:r.missing.map(d=>[d.platform||'',d.order,d.inv||'',d.date||'',phStatus(r,d.inv),d.shopifySku,d.sq,d.issue])},
+    extra:   {n:'Extra',       c:['Platform','Order No','Invoice No','Order Date','Fusion Status','Fusion SKU','Fusion QTY','Note'],d:r.extra.map(d=>[d.platform||'',d.order,d.inv||'',d.date||'',phStatus(r,d.inv),d.inspireSku,d.iq,d.note])},
+    onlySho: {n:r.statusLoaded?'Not_In_Fusion':'Only_Platform',c:['Platform','Order No','Invoice No','Order Date','Fusion Status','Fulfillment','SKUs','# SKUs'],d:r.onlyShoRows.map(d=>[d.platform||'',d.order,d.inv||'',d.date||'',phStatus(r,d.inv),d.fulfil||'',d.skus,d.totalSkus])},
+    notPicked:{n:'In_Fusion_Not_Picked',c:['Platform','Order No','Invoice No','Order Date','Fusion Status','Fulfillment','SKUs','# SKUs'],d:(r.notPickedRows||[]).map(d=>[d.platform||'',d.order,d.inv||'',d.date||'',phStatus(r,d.inv),d.fulfil||'',d.skus,d.totalSkus])},
+    onlyIns: {n:'Only_Fusion',c:['Platform','Order No','Invoice No','Order Date','Fusion Status','Note'],d:(r.onlyInsRows||[]).map(d=>[d.platform||'',d.order||'',d.inv,d.date||'',phStatus(r,d.inv),'No matching order'])},
+    shortPicks:{n:'Short_Picks',c:['Platform','Order No','Invoice No','Order Date','Fusion Status','SKU','To Pick','Picked','Reason'],d:(r.shortPicks||[]).map(d=>[d.platform||'',d.order,d.inv||'',d.date||'',phStatus(r,d.inv),d.sku,d.toPick,d.picked,d.reason||''])},
+    editedItems:{n:'Edited_Items',c:['Platform','Order No','Invoice No','Order Date','Fusion Status','Platform SKU','Fusion SKU','Fusion Picked','Note'],d:(r.editedItems||[]).map(d=>[d.platform||'',d.order,d.inv||'',d.date||'',phStatus(r,d.inv),d.shopifySku,d.fusionSku,d.iq==null?'':d.iq,d.note])},
+    fulfilNoPick:{n:'Fulfilled_No_PickList',c:['Order No','Invoice No','Order Date','Fusion Status','Shopify Fulfillment','Note'],d:(r.fulfilNoPick||[]).map(d=>[d.order,d.inv||'',d.date||'',phStatus(r,d.inv),d.status,d.note])},
+    pickedNotFulfil:{n:'Picked_Not_Fulfilled',c:['Order No','Invoice No','Order Date','Fusion Status','Shopify Fulfillment','Note'],d:(r.pickedNotFulfil||[]).map(d=>[d.order,d.inv||'',d.date||'',phStatus(r,d.inv),d.status,d.note])},
+    refunded:{n:'Refunded',    c:['Order No','Invoice No','Order Date','Fusion Status','Note'],d:r.refunded.map(n=>[n,phExInv(r,n),(r.excludedDates&&r.excludedDates[n])||'',phStatus(r,r.excludedInv&&r.excludedInv[n]),'Excluded'])},
+    tagExcluded:{n:'Tag_Excluded',c:['Order No','Invoice No','Order Date','Fusion Status','Matched Tag','Note'],d:(r.tagExcluded||[]).map(n=>[n,phExInv(r,n),(r.excludedDates&&r.excludedDates[n])||'',phStatus(r,r.excludedInv&&r.excludedInv[n]),(r.tagExcludedLabels&&r.tagExcludedLabels[n])||'','Excluded — matched order tag'])},
+    riskExcluded:{n:'Risk_Excluded',c:['Order No','Invoice No','Order Date','Fusion Status','Risk Level','Note'],d:(r.riskExcluded||[]).map(n=>[n,phExInv(r,n),(r.excludedDates&&r.excludedDates[n])||'',phStatus(r,r.excludedInv&&r.excludedInv[n]),(r.riskExcludedLabels&&r.riskExcludedLabels[n])||'','Excluded — risk level'])},
+    mktStatusExcluded:{n:'Marketplace_Status_Excluded',c:['Platform','Order No','Order Date','Fusion Status','Status','Note'],d:(r.mktStatusExcluded||[]).map(d=>[d.platform,d.order,d.date||'',phStatus(r,d.order),d.status,d.note])},
+    cancelledPicked:{n:'Cancelled_After_Picking',c:['Platform','Order No','Order Date','Fusion Status','Status','Picked Date','SKUs Picked','Total QTY'],d:(r.cancelledPicked||[]).map(d=>[d.platform,d.order,d.date||'',phStatus(r,d.order),d.status,d.pickedDate||'',d.skus,d.qty])},
   }:{
     match:   {n:'QTY_Match',    c:['Platform','Order','Order Date','SKU','QTY'],d:r.match.map(d=>[d.platform,d.order,d.date||'',d.platformSku,d.platformQty])},
     mismatch:{n:'QTY_Mismatch', c:['Platform','Order','Order Date','SKU','Platform QTY','NJV QTY','Diff','Remark'],d:r.mismatch.map(d=>[d.platform,d.order,d.date||'',d.platformSku,d.platformQty,d.njvQty,d.diff,d.remark])},
@@ -2054,22 +2155,23 @@ function exportFullReport(){
     {n:'Short Picks',d:[['Order/Invoice','SKU','To Pick','Picked','Reason'],...(r.shortPicks||[]).map(d=>[d.order,d.sku,d.toPick,d.picked,d.reason||''])]},
     {n:'Status Excluded',d:[['Order/Invoice','Status','Note'],...(r.statusExcluded||[]).map(d=>[d.order,d.status,d.note])]},
   ]:isPH?[
-    {n:'Summary',d:[['Metric','Value'],['Shopify Total',r.shoTotal],['Refunded Excluded',r.refunded.length],['Active Shopify',r.shoActive],['Fusion Total',r.insTotal],['Orders in Both',r.common],['Missing from Fusion',r.missing.length],['Extra in Fusion',r.extra.length],['QTY Mismatch',r.mismatch.length],['QTY Match',r.match.length],['Only Platform',r.onlySho.length],['Only Fusion',r.onlyIns.length],['Edited Items (review)',(r.editedItems||[]).length],['Marketplace Status Excluded',(r.mktStatusExcludedCount||0)],['Cancelled After Picking',(r.cancelledPicked||[]).length],['Short Picks',(r.shortPicks||[]).length],['Short Picks skipped (order not in platform export)',(r.shortPicksSkipped||0)],['Fulfilled No PickList',(r.fulfilNoPick||[]).length],['Picked Not Fulfilled',(r.pickedNotFulfil||[]).length]]},
-    {n:'Missing from Fusion',d:[['Platform','Order No','Invoice No','Order Date','Platform SKU','Order QTY','Issue'],...r.missing.map(d=>[d.platform||'',d.order,d.inv||'',d.date||'',d.shopifySku,d.sq,d.issue])]},
-    {n:'Extra in Fusion',d:[['Platform','Order No','Invoice No','Order Date','Fusion SKU','Fusion QTY','Note'],...r.extra.map(d=>[d.platform||'',d.order,d.inv||'',d.date||'',d.inspireSku,d.iq,d.note])]},
-    {n:'QTY Mismatch',d:[['Platform','Order No','Invoice No','Order Date','Platform SKU','Fusion SKU','Order QTY','Fusion QTY','Diff','Remark'],...r.mismatch.map(d=>[d.platform||'',d.order,d.inv||'',d.date||'',d.shopifySku,d.inspireSku,d.sq,d.iq,d.diff,d.remark])]},
-    {n:'QTY Match',d:[['Platform','Order No','Invoice No','Order Date','Platform SKU','Fusion SKU','QTY'],...r.match.map(d=>[d.platform||'',d.order,d.inv||'',d.date||'',d.shopifySku,d.inspireSku,d.sq])]},
-    {n:'Only in Platforms',d:[['Platform','Order No','Invoice No','Order Date','Fulfillment','SKUs','# SKUs'],...r.onlyShoRows.map(d=>[d.platform||'',d.order,d.inv||'',d.date||'',d.fulfil||'',d.skus,d.totalSkus])]},
-    {n:'Only in Fusion',d:[['Platform','Order No','Invoice No','Order Date','Note'],...(r.onlyInsRows||[]).map(d=>[d.platform||'',d.order||'',d.inv,d.date||'','No matching order'])]},
-    {n:'Short Picks',d:[['Platform','Order No','Invoice No','Order Date','SKU','To Pick','Picked','Reason'],...(r.shortPicks||[]).map(d=>[d.platform||'',d.order,d.inv||'',d.date||'',d.sku,d.toPick,d.picked,d.reason||''])]},
-    {n:'Edited Items',d:[['Platform','Order No','Invoice No','Order Date','Platform SKU','Fusion SKU','Fusion Picked','Note'],...(r.editedItems||[]).map(d=>[d.platform||'',d.order,d.inv||'',d.date||'',d.shopifySku,d.fusionSku,d.iq==null?'':d.iq,d.note])]},
-    {n:'Fulfilled No PickList',d:[['Order No','Invoice No','Order Date','Shopify Fulfillment','Note'],...(r.fulfilNoPick||[]).map(d=>[d.order,d.inv||'',d.date||'',d.status,d.note])]},
-    {n:'Picked Not Fulfilled',d:[['Order No','Invoice No','Order Date','Shopify Fulfillment','Note'],...(r.pickedNotFulfil||[]).map(d=>[d.order,d.inv||'',d.date||'',d.status,d.note])]},
-    {n:'Refunded',d:[['Order No','Order Date','Note'],...r.refunded.map(n=>[n,(r.excludedDates&&r.excludedDates[n])||'','Excluded'])]},
-    {n:'Tag Excluded',d:[['Order No','Order Date','Matched Tag','Note'],...(r.tagExcluded||[]).map(n=>[n,(r.excludedDates&&r.excludedDates[n])||'',(r.tagExcludedLabels&&r.tagExcludedLabels[n])||'','Excluded — matched order tag'])]},
-    {n:'Risk Excluded',d:[['Order No','Order Date','Risk Level','Note'],...(r.riskExcluded||[]).map(n=>[n,(r.excludedDates&&r.excludedDates[n])||'',(r.riskExcludedLabels&&r.riskExcludedLabels[n])||'','Excluded — risk level'])]},
-    {n:'Marketplace Status Excl',d:[['Platform','Order No','Order Date','Status','Note'],...(r.mktStatusExcluded||[]).map(d=>[d.platform,d.order,d.date||'',d.status,d.note])]},
-    {n:'Cancelled After Picking',d:[['Platform','Order No','Order Date','Status','Picked Date','SKUs Picked','Total QTY'],...(r.cancelledPicked||[]).map(d=>[d.platform,d.order,d.date||'',d.status,d.pickedDate||'',d.skus,d.qty])]},
+    {n:'Summary',d:[['Metric','Value'],['Shopify Total',r.shoTotal],['Refunded Excluded',r.refunded.length],['Active Shopify',r.shoActive],['Fusion Total',r.insTotal],['Orders in Both',r.common],['Missing from Fusion',r.missing.length],['Extra in Fusion',r.extra.length],['QTY Mismatch',r.mismatch.length],['QTY Match',r.match.length],[r.statusLoaded?'Not in Fusion':'Only Platform',r.onlySho.length],...(r.statusLoaded?[['In Fusion · Not Picked',(r.notPicked||[]).length]]:[]),['Only Fusion',r.onlyIns.length],['Edited Items (review)',(r.editedItems||[]).length],['Marketplace Status Excluded',(r.mktStatusExcludedCount||0)],['Cancelled After Picking',(r.cancelledPicked||[]).length],['Short Picks',(r.shortPicks||[]).length],['Short Picks skipped (order not in platform export)',(r.shortPicksSkipped||0)],['Fulfilled No PickList',(r.fulfilNoPick||[]).length],['Picked Not Fulfilled',(r.pickedNotFulfil||[]).length],...(r.dateRanges||[]).map(x=>['Date range — '+x.file,x.from===x.to?x.from:x.from+' → '+x.to])]},
+    {n:'Missing from Fusion',d:[['Platform','Order No','Invoice No','Order Date','Fusion Status','Platform SKU','Order QTY','Issue'],...r.missing.map(d=>[d.platform||'',d.order,d.inv||'',d.date||'',phStatus(r,d.inv),d.shopifySku,d.sq,d.issue])]},
+    {n:'Extra in Fusion',d:[['Platform','Order No','Invoice No','Order Date','Fusion Status','Fusion SKU','Fusion QTY','Note'],...r.extra.map(d=>[d.platform||'',d.order,d.inv||'',d.date||'',phStatus(r,d.inv),d.inspireSku,d.iq,d.note])]},
+    {n:'QTY Mismatch',d:[['Platform','Order No','Invoice No','Order Date','Fusion Status','Platform SKU','Fusion SKU','Order QTY','Fusion QTY','Diff','Remark'],...r.mismatch.map(d=>[d.platform||'',d.order,d.inv||'',d.date||'',phStatus(r,d.inv),d.shopifySku,d.inspireSku,d.sq,d.iq,d.diff,d.remark])]},
+    {n:'QTY Match',d:[['Platform','Order No','Invoice No','Order Date','Fusion Status','Platform SKU','Fusion SKU','QTY'],...r.match.map(d=>[d.platform||'',d.order,d.inv||'',d.date||'',phStatus(r,d.inv),d.shopifySku,d.inspireSku,d.sq])]},
+    {n:r.statusLoaded?'Not in Fusion':'Only in Platforms',d:[['Platform','Order No','Invoice No','Order Date','Fusion Status','Fulfillment','SKUs','# SKUs'],...r.onlyShoRows.map(d=>[d.platform||'',d.order,d.inv||'',d.date||'',phStatus(r,d.inv),d.fulfil||'',d.skus,d.totalSkus])]},
+    {n:'In Fusion Not Picked',d:[['Platform','Order No','Invoice No','Order Date','Fusion Status','Fulfillment','SKUs','# SKUs'],...(r.notPickedRows||[]).map(d=>[d.platform||'',d.order,d.inv||'',d.date||'',phStatus(r,d.inv),d.fulfil||'',d.skus,d.totalSkus])]},
+    {n:'Only in Fusion',d:[['Platform','Order No','Invoice No','Order Date','Fusion Status','Note'],...(r.onlyInsRows||[]).map(d=>[d.platform||'',d.order||'',d.inv,d.date||'',phStatus(r,d.inv),'No matching order'])]},
+    {n:'Short Picks',d:[['Platform','Order No','Invoice No','Order Date','Fusion Status','SKU','To Pick','Picked','Reason'],...(r.shortPicks||[]).map(d=>[d.platform||'',d.order,d.inv||'',d.date||'',phStatus(r,d.inv),d.sku,d.toPick,d.picked,d.reason||''])]},
+    {n:'Edited Items',d:[['Platform','Order No','Invoice No','Order Date','Fusion Status','Platform SKU','Fusion SKU','Fusion Picked','Note'],...(r.editedItems||[]).map(d=>[d.platform||'',d.order,d.inv||'',d.date||'',phStatus(r,d.inv),d.shopifySku,d.fusionSku,d.iq==null?'':d.iq,d.note])]},
+    {n:'Fulfilled No PickList',d:[['Order No','Invoice No','Order Date','Fusion Status','Shopify Fulfillment','Note'],...(r.fulfilNoPick||[]).map(d=>[d.order,d.inv||'',d.date||'',phStatus(r,d.inv),d.status,d.note])]},
+    {n:'Picked Not Fulfilled',d:[['Order No','Invoice No','Order Date','Fusion Status','Shopify Fulfillment','Note'],...(r.pickedNotFulfil||[]).map(d=>[d.order,d.inv||'',d.date||'',phStatus(r,d.inv),d.status,d.note])]},
+    {n:'Refunded',d:[['Order No','Invoice No','Order Date','Fusion Status','Note'],...r.refunded.map(n=>[n,phExInv(r,n),(r.excludedDates&&r.excludedDates[n])||'',phStatus(r,r.excludedInv&&r.excludedInv[n]),'Excluded'])]},
+    {n:'Tag Excluded',d:[['Order No','Invoice No','Order Date','Fusion Status','Matched Tag','Note'],...(r.tagExcluded||[]).map(n=>[n,phExInv(r,n),(r.excludedDates&&r.excludedDates[n])||'',phStatus(r,r.excludedInv&&r.excludedInv[n]),(r.tagExcludedLabels&&r.tagExcludedLabels[n])||'','Excluded — matched order tag'])]},
+    {n:'Risk Excluded',d:[['Order No','Invoice No','Order Date','Fusion Status','Risk Level','Note'],...(r.riskExcluded||[]).map(n=>[n,phExInv(r,n),(r.excludedDates&&r.excludedDates[n])||'',phStatus(r,r.excludedInv&&r.excludedInv[n]),(r.riskExcludedLabels&&r.riskExcludedLabels[n])||'','Excluded — risk level'])]},
+    {n:'Marketplace Status Excl',d:[['Platform','Order No','Order Date','Fusion Status','Status','Note'],...(r.mktStatusExcluded||[]).map(d=>[d.platform,d.order,d.date||'',phStatus(r,d.order),d.status,d.note])]},
+    {n:'Cancelled After Picking',d:[['Platform','Order No','Order Date','Fusion Status','Status','Picked Date','SKUs Picked','Total QTY'],...(r.cancelledPicked||[]).map(d=>[d.platform,d.order,d.date||'',phStatus(r,d.order),d.status,d.pickedDate||'',d.skus,d.qty])]},
   ]:[
     {n:'Summary',d:[['Metric','Value'],['Platform Total',r.platTotal],['Cancelled Excluded',r.excludedCount],['Active Platform Orders',r.platActive],['NJV Total Orders',r.njvTotal],['Orders in Both',r.common],['Missing from NJV',r.missing.length],['Extra in NJV',r.extra.length],['QTY Mismatch',r.mismatch.length],['QTY Match',r.match.length],['Only in Platforms',r.onlyPlat.length],['Only in NJV',r.onlyNJV.length]]},
     {n:'Missing from NJV',d:[['Order','Order Date','Platform SKU','Platform QTY','Issue'],...r.missing.map(d=>[d.order,d.date||'',d.platformSku,d.platformQty,d.issue])]},
